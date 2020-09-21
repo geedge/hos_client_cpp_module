@@ -7,48 +7,62 @@
 #define __HOS_CLIENT_INIT__
 
 /*hos client 句柄*/
-typedef void* hos_client_handle;
+typedef struct hos_client_handle_s* hos_client_handle;
 
-#define HOS_CLINET_OK 0
-#define HOS_CLIENT_ERR -1
+#define HOS_CLIENT_OK 0
+
+/* fd mode */
+#define FILE_MODE   0x00
+#define BUFF_MODE   0x01
+#define APPEND_MODE 0x02    /* 默认不追加 */
+
+/* hos 错误码 */
+enum hoserrors
+{
+    HOS_PARAMETER_ERROR = -1,
+    HOS_FILE_NOT_EXITS = -2,
+    HOS_HASH_NOT_FIND = -3,
+    HOS_FD_NOT_ENOUGH = -4,
+
+};
 
 /* s3 的错误码 */
 enum s3errors
 {
-  //From Core//
+  //From Core Aws::S3::S3Error + 1//
   //////////////////////////////////////////////////////////////////////////////////////////
-  INCOMPLETE_SIGNATURE = 0,
-  INTERNAL_FAILURE = 1,
-  INVALID_ACTION = 2,
-  INVALID_CLIENT_TOKEN_ID = 3,
-  INVALID_PARAMETER_COMBINATION = 4,
-  INVALID_QUERY_PARAMETER = 5,
-  INVALID_PARAMETER_VALUE = 6,
-  MISSING_ACTION = 7, // SDK should never allow
-  MISSING_AUTHENTICATION_TOKEN = 8, // SDK should never allow
-  MISSING_PARAMETER = 9, // SDK should never allow
-  OPT_IN_REQUIRED = 10,
-  REQUEST_EXPIRED = 11,
-  SERVICE_UNAVAILABLE = 12,
-  THROTTLING = 13,
-  VALIDATION = 14,
-  ACCESS_DENIED = 15,
-  RESOURCE_NOT_FOUND = 16,   // Shared with multiple services
-  UNRECOGNIZED_CLIENT = 17,  // Most likely caused by an invalid access key or secret key
-  MALFORMED_QUERY_STRING = 18,  
-  SLOW_DOWN = 19,
-  REQUEST_TIME_TOO_SKEWED = 20,
-  INVALID_SIGNATURE = 21,
-  SIGNATURE_DOES_NOT_MATCH = 22,
-  INVALID_ACCESS_KEY_ID = 23,
-  REQUEST_TIMEOUT = 24,
-  NETWORK_CONNECTION = 99,   // General failure to send message to service
+  INCOMPLETE_SIGNATURE = 1,
+  INTERNAL_FAILURE = 2,
+  INVALID_ACTION = 3,
+  INVALID_CLIENT_TOKEN_ID = 4,
+  INVALID_PARAMETER_COMBINATION = 5,
+  INVALID_QUERY_PARAMETER = 6,
+  INVALID_PARAMETER_VALUE = 7,
+  MISSING_ACTION = 8, // SDK should never allow
+  MISSING_AUTHENTICATION_TOKEN = 9, // SDK should never allow
+  MISSING_PARAMETER = 10, // SDK should never allow
+  OPT_IN_REQUIRED = 11,
+  REQUEST_EXPIRED = 12,
+  SERVICE_UNAVAILABLE = 13,
+  THROTTLING = 14,
+  VALIDATION = 15,
+  ACCESS_DENIED = 16,
+  RESOURCE_NOT_FOUND = 17,   // Shared with multiple services
+  UNRECOGNIZED_CLIENT = 18,  // Most likely caused by an invalid access key or secret key
+  MALFORMED_QUERY_STRING = 19,  
+  SLOW_DOWN = 20,
+  REQUEST_TIME_TOO_SKEWED = 21,
+  INVALID_SIGNATURE = 22,
+  SIGNATURE_DOES_NOT_MATCH = 23,
+  INVALID_ACCESS_KEY_ID = 24,
+  REQUEST_TIMEOUT = 25,
+  NETWORK_CONNECTION = 100,   // General failure to send message to service
 
   // These are needed for logical reasons
-  UNKNOWN = 100,
-  CLIENT_SIGNING_FAILURE = 101, // Client failed to sign the request
-  USER_CANCELLED = 102, // User cancelled the request
-  SERVICE_EXTENSION_START_RANGE = 128
+  UNKNOWN = 101,
+  CLIENT_SIGNING_FAILURE = 102, // Client failed to sign the request
+  USER_CANCELLED = 103, // User cancelled the request
+  SERVICE_EXTENSION_START_RANGE = 129,
   BUCKET_ALREADY_EXISTS= SERVICE_EXTENSION_START_RANGE + 1,
   BUCKET_ALREADY_OWNED_BY_YOU,
   NO_SUCH_BUCKET,
@@ -58,32 +72,80 @@ enum s3errors
   OBJECT_NOT_IN_ACTIVE_TIER
 };
 
+typedef void (*put_finished_callback)(bool, const char *, void *);
+
 /*************************************************************************************
  * 函数名： hos_client_init
  * 参数：   const char *endpoint        目的地址，如”http://192.168.44.12:9098/hos“
  *          const char *accesskeyid     AWS access key ID，如”default“
- *          const char *secretkey       AWS secret key，如”secretkey“
+ *          const char *secretkey       AWS secret key，如”default“
  * 返回值： 成功返回一个非空句柄，失败返回NULL。（失败原因都是因为输入参数为空）
 *************************************************************************************/
-hos_client_handle hos_client_init(const char *endpoint, const char *accesskeyid, const char *secretkey);
+hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyid, const char *secretkey, size_t thread_id);
 /*************************************************************************************
  * 函数名： hos_create_bucket
  * 参数：   hos_client_handle handle    非空句柄
  *          const char * bucket         桶名称
- * 返回值： bool 
+ * 返回值： int                         成功返回0，S3错误返回s3errors错误码，hos client错误返回hoserrors错误码
 *************************************************************************************/
-bool hos_create_bucket(hos_client_handle handle, const char *bucket);
+bool hos_verify_bucket(hos_client_handle handle, const char *bucket);
+/*************************************************************************************
+ * 函数名： hos_create_bucket
+ * 参数：   hos_client_handle handle    非空句柄
+ *          const char * bucket         桶名称
+ * 返回值： int                         成功返回0，S3错误返回s3errors错误码，hos client错误返回hoserrors错误码
+*************************************************************************************/
+int hos_create_bucket(hos_client_handle handle, const char *bucket);
 /*************************************************************************************
  * 函数名： hos_upload_async
  * 参数：   hos_client_handle handle    非空句柄
  *          const char * bucket         桶名称
  *          const char * object         上传对象名称
- * 返回值   bool
+ *          put_finished_callback callback upload操作结束时调用的回调函数
+ * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
-bool hos_upload_async(hos_client_handle handle, const char *bucket, const char *object);
+int hos_upload_file(hos_client_handle handle, const char *bucket, const char *file_path, put_finished_callback callback, void* userdata, size_t thread_id);
 /*************************************************************************************
- * 函数名： hos_client_close
+ * 函数名： hos_upload_async
  * 参数：   hos_client_handle handle    非空句柄
+ *          const char * bucket         桶名称
+ *          const char * object         上传对象名称
+ *          put_finished_callback callback upload操作结束时调用的回调函数
+ * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
-void hos_client_close(hos_client_handle handle);
+int hos_upload_buf(hos_client_handle handle, const char *bucket, const char *object, const char *buf, size_t buf_len, put_finished_callback callback, void *userdata, size_t thread_id);
+/*************************************************************************************
+ * 函数名： hos_open_fd
+ * 参数：   hos_client_handle handle    非空句柄
+ *          const char * bucket         桶名称
+ *          const char * object         上传对象名称
+ *          put_finished_callback callback upload操作结束时调用的回调函数
+ *          void *data                  用户自定义数据
+ *          size_t thread_id            线程ID
+ *          int mode                    模式 (FILE OR BUFFER, APPEND OR NOT)
+ * 返回值   int                         成功返回0，失败返回hoserros错误码
+*************************************************************************************/
+int hos_open_fd(hos_client_handle handle, const char *bucket, const char *object, put_finished_callback callback, void *userdata, size_t thread_id, int mode);
+/*************************************************************************************
+ * 函数名： hos_upload_stream_async
+ * 参数：   hos_client_handle handle    非空句柄
+ *          const char * stream         待上传的数据
+ *          size_t stream               待上传的数据长度
+ *          size_t thread_id            线程ID
+ * 返回值   int                         成功返回0，失败返回hoserros错误码
+*************************************************************************************/
+int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id);
+/*************************************************************************************
+ * 函数名： hos_close_fd
+ * 参数：   size_t fd                   fd
+ *          size_t thread_id            线程ID
+ * 返回值   int                         成功返回0，失败返回hoserros错误码
+*************************************************************************************/
+int hos_close_fd(size_t fd, size_t thread_id);
+/*************************************************************************************
+ * 函数名： hos_client_destory
+ * 参数：   hos_client_handle handle    非空句柄
+ * 返回值   int                         成功返回0，失败返回hoserros错误码
+*************************************************************************************/
+int hos_client_destory(hos_client_handle handle);
 #endif
