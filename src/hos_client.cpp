@@ -23,7 +23,7 @@ typedef struct hos_client_handle_s
 {
     Aws::S3::S3Client *S3Client;
     size_t append_size;
-    int thread_sum;
+    size_t thread_sum;
     Aws::Vector<Aws::S3::Model::Bucket> buckets;
 }hos_client_handle_t;
 
@@ -55,7 +55,7 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
     }
     const Aws::String& uuid = context->GetUUID();
     size_t thread_id, fd;
-    sscanf(uuid.c_str(), "%llu %llu", &thread_id, &fd);
+    sscanf(uuid.c_str(), "%lu %lu", &thread_id, &fd);
     hos_info_t *hos_info = find_info_by_fd(hash_hos_info[thread_id], fd);
     //put_finished_callback& callback = *(put_finished_callback *)hos_info->callback;
     put_finished_callback callback = (put_finished_callback)hos_info->callback;
@@ -64,7 +64,6 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
 
 hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyid, const char *secretkey, size_t thread_sum)
 {
-    int i;
     if (!endpoint || !accesskeyid || !secretkey || thread_sum > MAX_THREAD_NUM)
     {
         return NULL;
@@ -193,7 +192,7 @@ static int hos_upload_stream(hos_client_handle handle, const char *bucket, const
     //设置回调函数
     std::shared_ptr<Aws::Client::AsyncCallerContext> context = 
         Aws::MakeShared<Aws::Client::AsyncCallerContext>("");
-    sprintf(buf, "%ld %d", thread_id, fd);
+    sprintf(buf, "%lu %lu", thread_id, fd);
     context->SetUUID(buf);
     
     hos_info_t info = {fd, 0, handle, bucket, object, (void *)callback, userdata, };
@@ -292,7 +291,7 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
     //设置回调函数
     std::shared_ptr<Aws::Client::AsyncCallerContext> context = 
         Aws::MakeShared<Aws::Client::AsyncCallerContext>("");
-    sprintf(buf, "%ld %d", thread_id, fd);
+    sprintf(buf, "%lu %lu", thread_id, fd);
     context->SetUUID(buf);
     
     S3Client.PutObjectAsync(request, PutObjectAsyncFinished, context);
@@ -313,7 +312,7 @@ int hos_close_fd(size_t fd, size_t thread_id)
 
 int hos_client_destory(hos_client_handle handle)
 {
-    int i = 0;
+    size_t i = 0;
     if (handle == NULL)
     {
         return HOS_PARAMETER_ERROR;
