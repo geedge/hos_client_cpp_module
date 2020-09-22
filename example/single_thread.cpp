@@ -17,6 +17,11 @@ extern "C"
 
 #define debuginfo (void)
 
+typedef struct userdata_s
+{
+    struct timespec *finished;
+}userdata_t;
+
 static size_t  calc_time(struct timespec start, struct timespec end)
 {
     return (end.tv_sec * 1000 * 1000 * 1000 + end.tv_nsec - 
@@ -47,12 +52,8 @@ int file_to_buffer(const char *file, char *buffer, size_t *len)
 
 void callback(bool result, const char *error, void *userdata)
 {
-    //debuginfo("result : %s\n", result ? "true":"false");
-    if (result)
-        return ;
-    //debuginfo("error: %s\n", error);
-    //debuginfo("userdata:%s\n", (char *)userdata);
-    hos_close_fd(*(int *)userdata, 0);
+    userdata_t *data = (userdata_t *)userdata;
+    clock_gettime(CLOCK_MONOTONIC, data->finished);
     return ;
 }
 
@@ -63,7 +64,7 @@ int main(int argc, char *argv[])
         debuginfo("usege: singThread [bucket name] [object name]\n");
         return -1;
     }
-    struct timespec start, end;
+    struct timespec start, end, finished;
     size_t time;
     int i = 0;
     char *bucket = argv[1];
@@ -73,11 +74,14 @@ int main(int argc, char *argv[])
     //char *buf = (char *)malloc(1024 * 1024 * 4);
     char buf[1024 * 1024 * 4];
     size_t buf_size;
+    int mode = FILE_MODE;
+    size_t fd = 0; 
+    userdata_t data = {&finished};
 
     file_to_buffer(object, buf, &buf_size);
 
     debuginfo("hos_client_init start ...\n");
-    hos_client_handle handle = hos_client_create("http://192.168.44.12:9098/hos/", "default", "default", 4);
+    hos_client_handle handle = hos_client_create("http://192.168.44.10:9098/hos/", "default", "default", 4);
     if (handle == NULL) 
     {
         debuginfo("error:hos_client_handle\n");
@@ -101,10 +105,8 @@ int main(int argc, char *argv[])
     }
     debuginfo("hos_verify_bucket success ... \n");
     
-#if 1 
-    int mode = FILE_MODE;
-    size_t fd = 0; 
-    fd = hos_open_fd(handle, bucket, object, callback, (void *)&fd, 0, mode);
+#if 0
+    fd = hos_open_fd(handle, bucket, object, callback, (void *)&data, 0, mode);
     debuginfo("hos_upload_file start ...\n");
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (i = 0; i < test_times; i++)
@@ -118,9 +120,9 @@ int main(int argc, char *argv[])
     debuginfo("hos_upload_file end ...\n");
 #else
 
-    int mode = BUFF_MODE;
-    size_t fd = 0; 
-    fd = hos_open_fd(handle, bucket, object, callback, (void *)&fd, 0, mode);
+    mode = BUFF_MODE;
+    fd = 0; 
+    fd = hos_open_fd(handle, bucket, object, callback, (void *)&data, 0, mode);
     debuginfo("hos_upload_buf start ...\n");
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (i = 0; i < test_times; i++)
@@ -135,7 +137,13 @@ int main(int argc, char *argv[])
 
 #endif
     debuginfo("hos_client_close start ...\n");
-    hos_client_destory(handle);
+    if (hos_client_destory(handle) == 0)
+    {
+        time = calc_time(start, finished);
+        time /= test_times;
+        printf("hos upload finished spent %llu ns\n", time);
+    }
+
     debuginfo("hos_client_close end ...\n");
 
     return 0;
