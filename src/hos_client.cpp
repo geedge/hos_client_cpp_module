@@ -265,10 +265,15 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
     if (hos_info->mode & BUFF_MODE)
     {
         //BUFF_MODE
+#if 0
         const std::shared_ptr<Aws::IOStream> input_data = 
             Aws::MakeShared<Aws::StringStream>(stream, stream + stream_len);
         Aws::String buffer (stream, stream_len);
         *input_data << buffer;
+#else
+        Aws::StringStream *buffer = new Aws::StringStream(Aws::String(stream, stream_len));
+        const std::shared_ptr<Aws::IOStream> input_data(buffer); 
+#endif
         request.SetBody(input_data);
     }
     else

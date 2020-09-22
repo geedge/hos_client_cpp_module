@@ -4,7 +4,7 @@ set(lib_name hos-client-cpp)
 project(${lib_name})
 
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-include(Version)
+#include(Version)
 
 set(CMAKE_MACOSX_RPATH 0)
 
@@ -20,5 +20,5 @@ add_subdirectory(src)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/src/libhso-client-cpp.so DESTINATION ${CMAKE_INSTALL_PREFIX} COMPONENT PROFILE)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/src/libhos-client-cpp.a DESTINATION ${CMAKE_INSTALL_PREFIX} COMPONENT PROFILE)
 
-include(Package)
+#include(Package)
 
