@@ -9,7 +9,8 @@ num=0
 
 while((${num} < 7))
 do
-    ./singleThread mybucket ${test_size[$num]}.data 1000
+    echo ./hos_write_complete mybucket ${test_size[$num]}.data 1000
+    ./hos_write_complete mybucket ${test_size[$num]}.data 1000
     let "num++"
 done
 

@@ -17,6 +17,8 @@ void add_hos_info(hos_info_t **handle, hos_info_t *input)
     }
     else
     {
+        value->mode = input->mode;
+        value->handle = input->handle;
         value->bucket = input->bucket;
         value->object = input->object;
         value->callback = input->callback;
@@ -31,22 +33,22 @@ hos_info_t *find_info_by_fd(hos_info_t *handle, size_t fd)
     return value;
 }
 
-void delete_info_by_fd(hos_info_t *handle, size_t fd)
+void delete_info_by_fd(hos_info_t **handle, size_t fd)
 {
     hos_info_t *value = NULL;
-    HASH_FIND_INT(handle, &fd, value);
+    HASH_FIND_INT(*handle, &fd, value);
     if (value)
     {
-        HASH_DEL(handle, value);
+        HASH_DEL(*handle, value);
         free(value);
     }
 }
 
-void delete_all(hos_info_t *handle)
+void delete_all(hos_info_t **handle)
 {
     hos_info_t *current, *tmp;
-    HASH_ITER(hh, handle, current, tmp)
+    HASH_ITER(hh, *handle, current, tmp)
     {
-        HASH_DEL(handle, current);
+        HASH_DEL(*handle, current);
     }
 }

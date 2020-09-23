@@ -9,7 +9,7 @@ num=0
 
 while((${num} < 5))
 do
-    ./singleThread mybucket my-file.txt ${test_times[$num]}
+    ./hos_write_complete mybucket my-file.txt ${test_times[$num]}
     let "num++"
 done
 
