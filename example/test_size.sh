@@ -6,10 +6,11 @@
 #!/bin/bash
 test_size=("1k" "10k" "100k" "1M" "2M" "3M" "4M")
 num=0
+echo ${test_size[${num}]}
 
 while((${num} < 7))
 do
-    ./singleThread mybucket ./data//${test_size[$num]}.data 1000
+    ./hos_write_complete mybucket ./data/${test_size[$num]}.data 1000
     let "num++"
 done
 

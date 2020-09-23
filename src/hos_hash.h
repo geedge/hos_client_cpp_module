@@ -22,6 +22,6 @@ typedef struct hos_info_s
 
 void add_hos_info(hos_info_t **handle, hos_info_t *input);
 hos_info_t *find_info_by_fd(hos_info_t *handle, size_t fd);
-void delete_info_by_fd(hos_info_t *handle, size_t fd);
-void delete_all(hos_info_t *handle);
+void delete_info_by_fd(hos_info_t **handle, size_t fd);
+void delete_all(hos_info_t **handle);
 #endif

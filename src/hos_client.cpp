@@ -12,6 +12,7 @@ extern "C"
 #include <aws/s3/model/PutObjectRequest.h>
 #include <aws/s3/model/CreateBucketRequest.h>
 #include <aws/core/auth/AWSCredentials.h>
+#include <aws/core/utils/threading/Executor.h>
 #include <fstream>
 #include <iostream>
 #include <mutex>
@@ -24,6 +25,7 @@ typedef struct hos_client_handle_s
     Aws::S3::S3Client *S3Client;
     size_t append_size;
     size_t thread_sum;
+    Aws::SDKOptions *options;
     Aws::Vector<Aws::S3::Model::Bucket> buckets;
 }hos_client_handle_t;
 
@@ -60,6 +62,14 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
     //put_finished_callback& callback = *(put_finished_callback *)hos_info->callback;
     put_finished_callback callback = (put_finished_callback)hos_info->callback;
     callback(result, error, hos_info->userdata);
+    if (hos_info->mode & APPEND_MODE)
+    {
+        //APPEND MODE 保留fd
+    }else
+    {
+        //完整上传 删除fd
+        hos_close_fd(fd, thread_id);
+    }
 }
 
 hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyid, const char *secretkey, size_t thread_sum)
@@ -68,6 +78,7 @@ hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyi
     {
         return NULL;
     }
+    //Aws::SDKOptions *options = (Aws::SDKOptions *)malloc(sizeof(Aws::SDKOptions));
     Aws::SDKOptions options;
     Aws::InitAPI(options);
 
@@ -79,10 +90,16 @@ hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyi
     config.endpointOverride = endpoint;
     config.verifySSL = false;
     config.enableEndpointDiscovery = true;
+    //std::shared_ptr<Aws::Utils::Threading::Executor> pooled_thread = Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>("ClientConfigration"); 
+    //std::shared_ptr<Aws::Utils::Threading::Executor> test = std::make_shared<Aws::Utils::Threading::PooledThreadExecutor>(1000);
+    //config.executor(Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>("ClientConfiguration"));
+    //config.executor = std::dynamic_pointer_cast<Aws::Utils::Threading::PooledThreadExecutor>(config.executor);
+    config.executor = std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor>(std::make_shared<Aws::Utils::Threading::PooledThreadExecutor>(100));
 
     handle->S3Client = new Aws::S3::S3Client(credentials, config, Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
     handle->append_size = 30 * 1024 * 1024;
     handle->thread_sum = thread_sum;
+    handle->options = &options;
     /* 获取当前用户的所有的buckets */
     Aws::S3::Model::ListBucketsOutcome outcome = handle->S3Client->ListBuckets();
 
@@ -305,7 +322,7 @@ int hos_close_fd(size_t fd, size_t thread_id)
         return HOS_PARAMETER_ERROR;
     }
 
-    delete_info_by_fd(hash_hos_info[thread_id], fd);
+    delete_info_by_fd(&hash_hos_info[thread_id], fd);
 
     return HOS_CLIENT_OK;
 }
@@ -320,11 +337,14 @@ int hos_client_destory(hos_client_handle handle)
 
     delete handle->S3Client;
 
+    Aws::Vector<Aws::S3::Model::Bucket>().swap(handle->buckets);
+    Aws::ShutdownAPI(*(handle->options));
+
     for (i = 0; i < handle->thread_sum; i++)
     {
-        delete_all(hash_hos_info[i]);
+        delete_all(&hash_hos_info[i]);
     }
-
+    //free(handle->options);
     free(handle);
 
     return HOS_CLIENT_OK;
