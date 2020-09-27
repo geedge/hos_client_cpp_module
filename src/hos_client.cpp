@@ -87,14 +87,11 @@ hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyi
     Aws::Client::ClientConfiguration config;
     Aws::Auth::AWSCredentials credentials(accesskeyid, secretkey);
 
+    //初始化
     config.endpointOverride = endpoint;
     config.verifySSL = false;
     config.enableEndpointDiscovery = true;
-    //std::shared_ptr<Aws::Utils::Threading::Executor> pooled_thread = Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>("ClientConfigration"); 
-    //std::shared_ptr<Aws::Utils::Threading::Executor> test = std::make_shared<Aws::Utils::Threading::PooledThreadExecutor>(1000);
-    //config.executor(Aws::MakeShared<Aws::Utils::Threading::PooledThreadExecutor>("ClientConfiguration"));
-    //config.executor = std::dynamic_pointer_cast<Aws::Utils::Threading::PooledThreadExecutor>(config.executor);
-    config.executor = std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor>(std::make_shared<Aws::Utils::Threading::PooledThreadExecutor>(100));
+    config.executor = std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor>(std::make_shared<Aws::Utils::Threading::PooledThreadExecutor>(100));//支持线程池
 
     handle->S3Client = new Aws::S3::S3Client(credentials, config, Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
     handle->append_size = 30 * 1024 * 1024;
@@ -250,11 +247,12 @@ int hos_open_fd(hos_client_handle handle, const char *bucket, const char *object
     return fd;
 }
 
-int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id)
+int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id, size_t position)
 {
     struct stat buffer;
     hos_info_t *hos_info = NULL;
     hos_client_handle handle = NULL;
+    char num[128];
     char buf[128];
     if ((fd == 0) || (stream == NULL) || (thread_id > MAX_THREAD_NUM))
     {
@@ -276,12 +274,24 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
     request.SetKey(hos_info->object);
 
     //TODO APPEND MODE
+    snprintf(num, 128, "%lu", position);
+    Aws::Map<Aws::String, Aws::String> headers;
+    if (hos_info->mode & APPEND_MODE)
+    {
+        headers["x-hos-upload-type"] = "append";
+        headers["x-hos_position"] = num;
+        request.SetMetadata(headers);
+#if 0
+        request.AddMetadata("x-hos-upload-type", "append");
+        request.AddMetadata("x-hos-position", num);
+#endif
+    }
 
     //设置上传数据类型
     if (hos_info->mode & BUFF_MODE)
     {
         //BUFF_MODE
-#if 0
+#if 1
         const std::shared_ptr<Aws::IOStream> input_data = 
             Aws::MakeShared<Aws::StringStream>(stream, stream + stream_len);
         Aws::String buffer (stream, stream_len);

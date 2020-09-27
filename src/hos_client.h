@@ -134,7 +134,7 @@ int hos_open_fd(hos_client_handle handle, const char *bucket, const char *object
  *          size_t thread_id            线程ID
  * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
-int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id);
+int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id, size_t position);
 /*************************************************************************************
  * 函数名： hos_close_fd
  * 参数：   size_t fd                   fd
