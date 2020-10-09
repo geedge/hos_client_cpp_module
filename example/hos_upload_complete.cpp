@@ -106,13 +106,12 @@ int main(int argc, char *argv[])
     }
     debuginfo("hos_verify_bucket success ... \n");
     
-#if 0
-    fd = hos_open_fd(handle, bucket, object, callback, (void *)&data, 0, mode);
+#if 1
     debuginfo("hos_upload_file start ...\n");
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (i = 0; i < test_times; i++)
     {
-        hos_write(fd, object, 0, 0);
+        hos_upload_file(handle, bucket, object, callback, (void *)&data, 0);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     time = calc_time(start, end);
@@ -121,16 +120,11 @@ int main(int argc, char *argv[])
     debuginfo("hos_upload_file end ...\n");
 #else
 
-    mode = BUFF_MODE;
-    for (i = 0; i < 10000; i++)
-    {
-        fd[i] = hos_open_fd(handle, bucket, object, callback, (void *)&data, 0, mode);
-    }
     debuginfo("hos_upload_buf start ...\n");
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (i = 0; i < test_times; i++)
     {
-        hos_write(fd[i], buf, buf_size, 0);
+        hos_upload_buf(handle, bucket, object, buf, buf_len, callback, (void *)&data, 0);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     time = calc_time(start, end);
