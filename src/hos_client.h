@@ -79,9 +79,10 @@ typedef void (*put_finished_callback)(bool, const char *, void *);
  * 参数：   const char *endpoint        目的地址，如”http://192.168.44.12:9098/hos“
  *          const char *accesskeyid     AWS access key ID，如”default“
  *          const char *secretkey       AWS secret key，如”default“
+ *          size_t thread_sum           线程总数
  * 返回值： 成功返回一个非空句柄，失败返回NULL。（失败原因都是因为输入参数为空）
 *************************************************************************************/
-hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyid, const char *secretkey, size_t thread_id);
+hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyid, const char *secretkey, size_t thread_sum);
 /*************************************************************************************
  * 函数名： hos_create_bucket
  * 参数：   hos_client_handle handle    非空句柄
@@ -100,8 +101,10 @@ int hos_create_bucket(hos_client_handle handle, const char *bucket);
  * 函数名： hos_upload_async
  * 参数：   hos_client_handle handle    非空句柄
  *          const char * bucket         桶名称
- *          const char * object         上传对象名称
+ *          const char * file_path         上传对象路径
  *          put_finished_callback callback upload操作结束时调用的回调函数
+ *          void *userdata              用户自定义数据
+ *          size_t thread_id            当前线程id
  * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
 int hos_upload_file(hos_client_handle handle, const char *bucket, const char *file_path, put_finished_callback callback, void* userdata, size_t thread_id);
@@ -110,7 +113,11 @@ int hos_upload_file(hos_client_handle handle, const char *bucket, const char *fi
  * 参数：   hos_client_handle handle    非空句柄
  *          const char * bucket         桶名称
  *          const char * object         上传对象名称
+ *          const char *buf             上传的buf
+ *          size_t buf_len              上传的buf的长度
  *          put_finished_callback callback upload操作结束时调用的回调函数
+ *          void *userdata              用户自定义数据
+ *          size_t thread_id            当前线程id
  * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
 int hos_upload_buf(hos_client_handle handle, const char *bucket, const char *object, const char *buf, size_t buf_len, put_finished_callback callback, void *userdata, size_t thread_id);
@@ -132,6 +139,7 @@ int hos_open_fd(hos_client_handle handle, const char *bucket, const char *object
  *          const char * stream         待上传的数据
  *          size_t stream               待上传的数据长度
  *          size_t thread_id            线程ID
+ *          size_t position             append模式下的每段内容编号
  * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
 int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id, size_t position);
