@@ -11,7 +11,7 @@ extern "C"
 #include<string.h>
 #include<time.h>
 }
-#include"../src/hos_client.h"
+#include"hos_client.h"
 
 //#define test_times 10000
 
@@ -71,21 +71,23 @@ int main(int argc, char *argv[])
     char *object = argv[2];
     int test_times = atoi(argv[3]);
     //int test_times = 10000;
-    //char *buf = (char *)malloc(1024 * 1024 * 4);
-    char buf[1024 * 1024 * 4];
+    char *buf = (char *)malloc(1024 * 1024 * 40);
+    //char buf[1024 * 1024 * 4];
     //char buf[1024 * 4];
     size_t buf_size;
     int mode = FILE_MODE;
-    size_t fd[10000] = {0}; 
+    size_t fd[10001] = {0}; 
     userdata_t data = {&finished};
+    //printf("finished:%lu\n", finished.tv_sec * 1000 * 1000 * 1000 + finished.tv_nsec);
 
     file_to_buffer(object, buf, &buf_size);
 
     debuginfo("hos_client_init start ...\n");
-    hos_client_handle handle = hos_client_create("http://192.168.44.10:9098/hos/", "default", "default", 4);
+    hos_client_handle handle = hos_client_create("http://192.168.40.223:9098/hos/", "default", "default", 4, 4000);
+    //hos_client_handle handle = hos_client_create("http://192.168.32.10:9098/hos/", "default", "default", 4);
     if (handle == NULL) 
     {
-        debuginfo("error:hos_client_handle\n");
+        printf("error:hos_client_handle\n");
         return -1;
     }  
     debuginfo("hos_client_init success ... \n");
@@ -93,7 +95,7 @@ int main(int argc, char *argv[])
     debuginfo("hos_create_bucket start ... \n");
     if(hos_create_bucket(handle, bucket))
     {
-        debuginfo("hos_create_bucket failed ... \n");
+        printf("hos_create_bucket failed ... \n");
         return -1;
     }
     debuginfo("hos_create_bucket success ... \n");
@@ -101,17 +103,24 @@ int main(int argc, char *argv[])
     debuginfo("hos_verify_bucket start ... \n");
     if(!hos_verify_bucket(handle, bucket))
     {
-        debuginfo("hos_verify_bucket failed ... \n");
+        printf("hos_verify_bucket failed ... \n");
         return -1;
     }
     debuginfo("hos_verify_bucket success ... \n");
     
 #if 1
+    mode = FILE_MODE;
+#if 0
+    for (i = 0; i < test_times; i++)
+    {
+    }
+#endif
     debuginfo("hos_upload_file start ...\n");
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (i = 0; i < test_times; i++)
     {
-        hos_upload_file(handle, bucket, object, callback, (void *)&data, 0);
+        fd[i] = hos_open_fd(handle, bucket, object, callback, (void *)&data, 0, mode);
+        hos_write(fd[i], object, 0, 0, 0);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     time = calc_time(start, end);
@@ -120,11 +129,23 @@ int main(int argc, char *argv[])
     debuginfo("hos_upload_file end ...\n");
 #else
 
+    mode = BUFF_MODE | APPEND_MODE;
+#if 0
+    for (i = 0; i < test_times; i++)
+    {
+    }
+#endif
     debuginfo("hos_upload_buf start ...\n");
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (i = 0; i < test_times; i++)
     {
-        hos_upload_buf(handle, bucket, object, buf, buf_len, callback, (void *)&data, 0);
+        fd[i] = hos_open_fd(handle, bucket, object, callback, (void *)&data, 0, mode);
+        //printf("hos_write start...\n");
+        if(hos_write(fd[i], buf, buf_size, 0, i + 1) != HOS_CLIENT_OK)
+        {
+            printf("error: hos_write!\n");
+        }
+        //printf("hos_write success...\n");
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     time = calc_time(start, end);
@@ -136,12 +157,14 @@ int main(int argc, char *argv[])
     debuginfo("hos_client_close start ...\n");
     if (hos_client_destory(handle) == 0)
     {
+        //printf("start:%lu\n", start.tv_sec * 1000 * 1000 * 1000 + start.tv_nsec);
+        //printf("finished:%lu\n", finished.tv_sec * 1000 * 1000 * 1000 + finished.tv_nsec);
         time = calc_time(start, finished);
         time /= test_times;
         printf("hos upload finished spent %llu ns\n", time);
     }
 
     debuginfo("hos_client_close end ...\n");
-
+    free(buf);
     return 0;
 }

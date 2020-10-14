@@ -11,7 +11,7 @@ extern "C"
 #include<string.h>
 #include<time.h>
 }
-#include"../src/hos_client.h"
+#include"hos_client.h"
 
 //#define test_times 10000
 
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
     file_to_buffer(object, buf, &buf_size);
 
     debuginfo("hos_client_init start ...\n");
-    hos_client_handle handle = hos_client_create("http://192.168.44.10:9098/hos/", "default", "default", 4);
+    hos_client_handle handle = hos_client_create("http://192.168.44.10:9098/hos/", "default", "default", 4, 3000);
     if (handle == NULL) 
     {
         debuginfo("error:hos_client_handle\n");
@@ -107,17 +107,11 @@ int main(int argc, char *argv[])
     debuginfo("hos_verify_bucket success ... \n");
     
 #if 1
-    mode = FILE_MODE;
-    for (i = 0; i < test_times; i++)
-    {
-        fd[i] = hos_open_fd(handle, bucket, object, callback, (void *)&data, 0, mode);
-    }
-
     debuginfo("hos_upload_file start ...\n");
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (i = 0; i < test_times; i++)
     {
-        hos_write(fd[i], object, 0, 0, 0);
+        hos_upload_file(handle, bucket, object, callback, (void *)&data, 0);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     time = calc_time(start, end);
@@ -126,16 +120,11 @@ int main(int argc, char *argv[])
     debuginfo("hos_upload_file end ...\n");
 #else
 
-    mode = BUFF_MODE | APPEND_MODE;
-    for (i = 0; i < test_times; i++)
-    {
-        fd[i] = hos_open_fd(handle, bucket, object, callback, (void *)&data, 0, mode);
-    }
     debuginfo("hos_upload_buf start ...\n");
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (i = 0; i < test_times; i++)
     {
-        hos_write(fd[i], buf, buf_size, 0, i);
+        hos_upload_buf(handle, bucket, object, buf, buf_len, callback, (void *)&data, 0);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     time = calc_time(start, end);
