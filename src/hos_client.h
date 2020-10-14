@@ -80,9 +80,9 @@ typedef void (*put_finished_callback)(bool, const char *, void *);
  *          const char *accesskeyid     AWS access key ID，如”default“
  *          const char *secretkey       AWS secret key，如”default“
  *          size_t thread_sum           线程总数
- * 返回值： 成功返回一个非空句柄，失败返回NULL。（失败原因都是因为输入参数为空）
+ * 返回值： 成功返回一个非空句柄，失败返回NULL。（失败原因都是因为输入参数不合法）
 *************************************************************************************/
-hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyid, const char *secretkey, size_t thread_sum);
+hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyid, const char *secretkey, size_t thread_sum, size_t pool_size);
 /*************************************************************************************
  * 函数名： hos_create_bucket
  * 参数：   hos_client_handle handle    非空句柄

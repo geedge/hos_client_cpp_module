@@ -80,14 +80,14 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
     }
 }
 
-hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyid, const char *secretkey, size_t thread_sum)
+hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyid, const char *secretkey, size_t thread_sum, size_t pool_size)
 {
     if (!endpoint || !accesskeyid || !secretkey || thread_sum > MAX_THREAD_NUM)
     {
         return NULL;
     }
     Aws::SDKOptions options;
-    //auto options = new Aws::SDKOptions;
+    //options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
     Aws::InitAPI(options);
 
     hos_client_handle handle = (hos_client_handle)malloc(sizeof(hos_client_handle_t));
@@ -99,7 +99,7 @@ hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyi
     config.endpointOverride = endpoint;
     config.verifySSL = false;
     config.enableEndpointDiscovery = true;
-    config.executor = std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor>(std::make_shared<Aws::Utils::Threading::PooledThreadExecutor>(100));//支持线程池
+    config.executor = std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor>(std::make_shared<Aws::Utils::Threading::PooledThreadExecutor>(pool_size));//支持线程池
 
     handle->S3Client = new Aws::S3::S3Client(credentials, config, Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
     handle->append_size = 30 * 1024 * 1024;
@@ -192,7 +192,7 @@ static int hos_upload_stream(hos_client_handle handle, const char *bucket, const
     //设置上传数据类型
     if (file_type == 0)
     {
-        if (stat(object, &buffer) == -1)
+        if (stat(data, &buffer) == -1)
         {
             return HOS_FILE_NOT_EXITS;
         }
@@ -317,8 +317,7 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
     }
     else
     {
-        //BUFF_MODE
-        if (stat(hos_info->object, &buffer) == -1)
+        if (stat(stream, &buffer) == -1)
         {
             return HOS_FILE_NOT_EXITS;
         }
