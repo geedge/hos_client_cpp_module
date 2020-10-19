@@ -82,7 +82,7 @@ typedef void (*put_finished_callback)(bool, const char *, void *);
  *          size_t thread_sum           线程总数
  * 返回值： 成功返回一个非空句柄，失败返回NULL。（失败原因都是因为输入参数不合法）
 *************************************************************************************/
-hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyid, const char *secretkey, size_t thread_sum, size_t pool_size);
+hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyid, const char *secretkey, size_t pool_size);
 /*************************************************************************************
  * 函数名： hos_create_bucket
  * 参数：   hos_client_handle handle    非空句柄
@@ -97,6 +97,24 @@ bool hos_verify_bucket(hos_client_handle handle, const char *bucket);
  * 返回值： int                         成功返回0，S3错误返回s3errors错误码，hos client错误返回hoserrors错误码
 *************************************************************************************/
 int hos_create_bucket(hos_client_handle handle, const char *bucket);
+/*************************************************************************************
+ * 函数名： set_cache_size
+ * 参数：   hos_client_handle handle    非空句柄
+ *          size_t cache_size           append 模式每次追加的buffer大小   
+*************************************************************************************/
+void set_cache_size(hos_client_handle handle,  size_t cache_size);
+/*************************************************************************************
+ * 函数名： set_cache_times
+ * 参数：   hos_client_handle handle    非空句柄
+ *          size_t cache_times           append 模式追加次数
+*************************************************************************************/
+void set_cache_times(hos_client_handle handle,  size_t cache_times);
+/*************************************************************************************
+ * 函数名： set_thread_sum
+ * 参数：   hos_client_handle handle    非空句柄
+ *          size_t thread_sum           append 模式追加次数
+*************************************************************************************/
+void set_cache_times(hos_client_handle handle,  size_t thread_sum);
 /*************************************************************************************
  * 函数名： hos_upload_async
  * 参数：   hos_client_handle handle    非空句柄
@@ -142,7 +160,7 @@ int hos_open_fd(hos_client_handle handle, const char *bucket, const char *object
  *          size_t position             append模式下的每段内容编号
  * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
-int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id, size_t position);
+int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id);
 /*************************************************************************************
  * 函数名： hos_close_fd
  * 参数：   size_t fd                   fd

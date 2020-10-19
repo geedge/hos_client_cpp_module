@@ -6,17 +6,24 @@
 #ifndef __HOS_HASH_H__
 #define __HOS_HASH_H__
 
+#include <aws/core/Aws.h>
+#include "hos_client.h"
 #include "uthash.h"
 
 typedef struct hos_info_s
 {
     size_t fd;
     int  mode;
-    void *handle; 
+    hos_client_handle handle; 
     const char *bucket;
     const char *object;
     void *callback;
     void *userdata;
+    std::shared_ptr<Aws::IOStream> cache;
+    //void *cache;
+    size_t cache_times;
+    size_t cache_rest;
+    size_t position;
     UT_hash_handle hh;
 }hos_info_t;
 
