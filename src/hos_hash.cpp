@@ -23,6 +23,10 @@ void add_hos_info(hos_info_t **handle, hos_info_t *input)
         value->object = input->object;
         value->callback = input->callback;
         value->userdata = input->userdata;
+        value->cache = input->cache;
+        value->cache_times = input->cache_times;
+        value->cache_rest = input->cache_rest;
+        value->position = input->position;
     }
 }
 
