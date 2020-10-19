@@ -167,7 +167,7 @@ static int upload_file(char *file, char *buff, int buff_len, int test_times, thr
     for (i = 0; i < test_times; i++)
     {
         fd[i] = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
-        if (hos_write(fd[i], file, 0, thread_info->thread_num, 0) != HOS_CLIENT_OK)
+        if (hos_write(fd[i], file, 0, thread_info->thread_num) != HOS_CLIENT_OK)
         {
             printf("error:hos_write file:%s\n", file);
             return -1;
@@ -212,7 +212,7 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
             clock_gettime(CLOCK_MONOTONIC, &tstart);
             for (i = 0; i < test_times; i++)
             {
-                hos_write(fd, &buff[tmp], rest, thread_info->thread_num, j + 1);
+                hos_write(fd, &buff[tmp], rest, thread_info->thread_num);
             }
             clock_gettime(CLOCK_MONOTONIC, &ttmp);
             time_tmp = calc_time(tstart, ttmp);
@@ -229,7 +229,7 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
         clock_gettime(CLOCK_MONOTONIC, &tstart);
         for (i = 0; i < test_times; i++)
         {
-            hos_write(fd, &buff[tmp], conf->append_size, thread_info->thread_num, j + 1);
+            hos_write(fd, &buff[tmp], conf->append_size, thread_info->thread_num);
         }
         clock_gettime(CLOCK_MONOTONIC, &ttmp);
         time_tmp = calc_time(tstart, ttmp);
@@ -256,10 +256,10 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
                 rest = buff_len - tmp;
                 if (rest < conf->append_size)
                 {
-                    hos_write(fd, &buff[tmp], rest, thread_info->thread_num, j + 1);
+                    hos_write(fd, &buff[tmp], rest, thread_info->thread_num);
                     break;
                 }
-                hos_write(fd, &buff[tmp], conf->append_size, thread_info->thread_num, j + 1);
+                hos_write(fd, &buff[tmp], conf->append_size, thread_info->thread_num);
                 j++;
             }
         }
@@ -277,7 +277,7 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
         clock_gettime(CLOCK_MONOTONIC, &tstart);
         for (i = 0; i < test_times; i++)
         {
-            hos_write(fd, buff, buff_len, thread_info->thread_num, j + 1);
+            hos_write(fd, buff, buff_len, thread_info->thread_num);
         }
         clock_gettime(CLOCK_MONOTONIC, &ttmp);
         time = calc_time(tstart, ttmp);
@@ -309,7 +309,7 @@ static void *put_object_thread(void *ptr)
     char *buff = NULL;
     char file_name[100][256];
     struct stat s_buf;
-    int test_times = 1;
+    int test_times = 1000;
 
     buff = (char *)malloc(30 * 1024 * 1024);
     if (buff == NULL)
@@ -471,7 +471,7 @@ int main(int argc, char *argv[])
         return -1;
     }
     //创建client
-    hos_client_handle handle = hos_client_create(conf.endpoint, "default", "default", conf.thread_sum, conf.pool_size);
+    hos_client_handle handle = hos_client_create(conf.endpoint, "default", "default", conf.pool_size);
     if (handle == NULL)
     {
         printf("error:hos_client_handle\n");
