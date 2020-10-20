@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
     file_to_buffer(object, buf, &buf_size);
 
     debuginfo("hos_client_init start ...\n");
-    hos_client_handle handle = hos_client_create("http://192.168.44.10:9098/hos/", "default", "default", 4, 3000);
+    hos_client_handle handle = hos_client_create("http://192.168.44.10:9098/hos/", "default", "default", 3000);
     if (handle == NULL) 
     {
         debuginfo("error:hos_client_handle\n");

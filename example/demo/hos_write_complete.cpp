@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
     file_to_buffer(object, buf, &buf_size);
 
     debuginfo("hos_client_init start ...\n");
-    hos_client_handle handle = hos_client_create("http://192.168.40.223:9098/hos/", "default", "default", 4, 4000);
+    hos_client_handle handle = hos_client_create("http://192.168.40.223:9098/hos/", "default", "default", 4000);
     //hos_client_handle handle = hos_client_create("http://192.168.32.10:9098/hos/", "default", "default", 4);
     if (handle == NULL) 
     {
@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
     for (i = 0; i < test_times; i++)
     {
         fd[i] = hos_open_fd(handle, bucket, object, callback, (void *)&data, 0, mode);
-        hos_write(fd[i], object, 0, 0, 0);
+        hos_write(fd[i], object, 0, 0);
     }
     clock_gettime(CLOCK_MONOTONIC, &end);
     time = calc_time(start, end);
