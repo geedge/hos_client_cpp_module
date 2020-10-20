@@ -199,6 +199,7 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
     conf_t *conf = &thread_info->conf;
     char file_size[128];
     char append_size[128];
+    size_t drop_cnt = 0;
 
     fd = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
 #if 0
@@ -277,11 +278,15 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
         clock_gettime(CLOCK_MONOTONIC, &tstart);
         for (i = 0; i < test_times; i++)
         {
-            hos_write(fd, buff, buff_len, thread_info->thread_num);
+            if (hos_write(fd, buff, buff_len, thread_info->thread_num) != HOS_CLIENT_OK)
+            {
+                //printf("error: hos_write error\n");
+                drop_cnt++;
+            }
         }
         clock_gettime(CLOCK_MONOTONIC, &ttmp);
         time = calc_time(tstart, ttmp);
-        time /= test_times;
+        time /= (test_times - drop_cnt);
 
         sprintf(file_size, "%dk", buff_len / 1024);
         sprintf(append_size, "%luk", conf->append_size / 1024);
@@ -309,7 +314,7 @@ static void *put_object_thread(void *ptr)
     char *buff = NULL;
     char file_name[100][256];
     struct stat s_buf;
-    int test_times = 1000;
+    int test_times = 100;
 
     buff = (char *)malloc(30 * 1024 * 1024);
     if (buff == NULL)
