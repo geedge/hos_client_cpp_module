@@ -23,6 +23,7 @@ enum hoserrors
     HOS_FILE_NOT_EXITS = -2,
     HOS_HASH_NOT_FIND = -3,
     HOS_FD_NOT_ENOUGH = -4,
+    HOS_SEND_FAILED = -5,
 
 };
 
