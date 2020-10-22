@@ -115,7 +115,7 @@ void set_cache_times(hos_client_handle handle,  size_t cache_times);
  * 参数：   hos_client_handle handle    非空句柄
  *          size_t thread_sum           append 模式追加次数
 *************************************************************************************/
-void set_cache_times(hos_client_handle handle,  size_t thread_sum);
+void set_thread_sum(hos_client_handle handle,  size_t thread_sum);
 /*************************************************************************************
  * 函数名： hos_upload_async
  * 参数：   hos_client_handle handle    非空句柄
@@ -162,6 +162,15 @@ int hos_open_fd(hos_client_handle handle, const char *bucket, const char *object
  * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
 int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id);
+/*************************************************************************************
+ * 函数名： hos_expand_fs2
+ * 参数：   hos_client_handle handle    非空句柄
+ *          const char * path           log 路径
+ *          int format                  0:default; 1: Json
+ *          char *server_ip             服务IP地址
+ *          int port                    服务端口
+*************************************************************************************/
+void hos_expand_fs2(hos_client_handle handle, const char * path, int format, char *server_ip, int port);
 /*************************************************************************************
  * 函数名： hos_close_fd
  * 参数：   size_t fd                   fd
