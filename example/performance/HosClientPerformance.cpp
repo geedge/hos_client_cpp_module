@@ -199,9 +199,9 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
     conf_t *conf = &thread_info->conf;
     char file_size[128];
     char append_size[128];
-    size_t drop_cnt = 0;
+    size_t success_cnt = 0;
+    int ret = 0;
 
-    fd = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
 #if 0
     size_t time_tmp = 0;
     while(1)
@@ -248,6 +248,7 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
 #else
     if (conf->mode & APPEND_MODE)
     {
+        fd = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
         clock_gettime(CLOCK_MONOTONIC, &tstart);
         for (i = 0; i < test_times; i++)
         {
@@ -278,15 +279,22 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
         clock_gettime(CLOCK_MONOTONIC, &tstart);
         for (i = 0; i < test_times; i++)
         {
-            if (hos_write(fd, buff, buff_len, thread_info->thread_num) != HOS_CLIENT_OK)
+            fd = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
+            ret = hos_write(fd, buff, buff_len, thread_info->thread_num);
+            if (ret == HOS_CLIENT_OK)
             {
-                //printf("error: hos_write error\n");
-                drop_cnt++;
+                success_cnt++;
+            }else
+            {
+                printf("error code:%d\n", ret);
             }
         }
         clock_gettime(CLOCK_MONOTONIC, &ttmp);
         time = calc_time(tstart, ttmp);
-        time /= (test_times - drop_cnt);
+        if (success_cnt)
+            time /= success_cnt;
+        else
+            time /= test_times;
 
         sprintf(file_size, "%dk", buff_len / 1024);
         sprintf(append_size, "%luk", conf->append_size / 1024);
@@ -294,7 +302,6 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
         sprintf(&performance_info[len], "%-20lu%-20s%-20d%-20d%-20lu\n",
                 thread_info->thread_num, file_size, 0, 0, time);
     }
-
 
 #endif
     hos_close_fd(fd, thread_info->thread_num);
@@ -437,7 +444,7 @@ int main(int argc, char *argv[])
                 break;
             case 'p':
                 conf.pool_size = atoi(optarg);
-                conf.pool_size = MIN(3000, conf.pool_size);
+                conf.pool_size = MIN(4000, conf.pool_size);
                 break;
             case 't':
                 conf.thread_sum = atoi(optarg);
@@ -484,6 +491,9 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    set_thread_sum(handle, conf.thread_sum);
+    set_cache_size(handle, conf.append_size);
+
     //创建bucket
     if (hos_create_bucket(handle, conf.bucket))
     {
@@ -501,6 +511,7 @@ int main(int argc, char *argv[])
     {
         printf("%-20s%-20s%-20s%-20s%-20s\n", "thread_id", "file_size", "write_time", "upload_time", "total_time");
     }
+    hos_expand_fs2(handle, "./log/fs2.log", 0, "127.0.0.1", 8001);
     for ( thread_num = 0; thread_num < conf.thread_sum; thread_num++ )
     {
         thread_info[thread_num].conf = conf;
