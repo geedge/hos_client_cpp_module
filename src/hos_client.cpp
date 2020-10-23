@@ -50,6 +50,7 @@ typedef struct hos_client_handle_s
 
 hos_info_t *hash_hos_info[MAX_HOS_CLIENT_THREAD_NUM];
 size_t fd_info[MAX_HOS_CLIENT_THREAD_NUM][MAX_HOS_CLIENT_FD_NUM];
+Aws::SDKOptions options;
 
 static size_t hash_get_min_free_fd(size_t thread_id)
 {
@@ -115,6 +116,18 @@ void set_thread_sum(hos_client_handle client, size_t thread_sum)
     return ;
 }
 
+void hos_init_api()
+{
+    //options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
+    Aws::InitAPI(options);
+}
+
+void hos_shutdown_api()
+{
+    //options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
+    Aws::ShutdownAPI(options);
+}
+
 hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyid, const char *secretkey, size_t pool_size)
 {
     if (!endpoint || !accesskeyid || !secretkey)
@@ -122,9 +135,6 @@ hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyi
         return NULL;
     }
 
-    Aws::SDKOptions options;
-    //options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
-    Aws::InitAPI(options);
 
     hos_client_handle handle = (hos_client_handle)malloc(sizeof(hos_client_handle_t));
     memset(handle, 0, sizeof(hos_client_handle_t));
@@ -547,7 +557,6 @@ int hos_client_destory(hos_client_handle handle)
     delete handle->S3Client;
 
     Aws::Vector<Aws::S3::Model::Bucket>().swap(handle->buckets);
-    Aws::ShutdownAPI((handle->options));
 
     for (i = 0; i < handle->thread_sum; i++)
     {
