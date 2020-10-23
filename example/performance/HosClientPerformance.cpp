@@ -482,6 +482,7 @@ int main(int argc, char *argv[])
         perror(log_name);
         return -1;
     }
+    hos_init_api();
     //创建client
     hos_client_handle handle = hos_client_create(conf.endpoint, "default", "default", conf.pool_size);
     if (handle == NULL)
@@ -552,6 +553,7 @@ int main(int argc, char *argv[])
         //time /= test_times;
         //printf("hos upload finished spent %llu ns\n", time);
     }
+    hos_shutdown_api();
 
     fclose(log);
     return 0;
