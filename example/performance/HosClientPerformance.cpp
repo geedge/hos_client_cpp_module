@@ -13,10 +13,11 @@ extern "C"
 #include<pthread.h>
 #include<dirent.h>
 #include<sys/stat.h>
+#include<math.h>
 }
 #include"../../src/hos_client.h"
 
-#define MAX_THREAD_NUM 16
+#define MAX_THREAD_NUM 32
 #ifndef MIN
 #define MIN(a,b) ((a) > (b)) ? (b) : (a)
 #endif
@@ -30,7 +31,9 @@ typedef struct conf_s
     char file[STRING_SIZE];
     size_t pool_size;
     size_t thread_sum;
-    size_t append_size;
+    size_t size;
+    float append_size;
+    size_t slice;
     int mode;
 }conf_t;
 
@@ -51,6 +54,7 @@ static void configuration_init(conf_t *conf)
     conf->append_size = 1024;
     conf->thread_sum = 1;
     conf->mode = BUFF_MODE;
+    conf->slice = 0;
 
     return ;
 }
@@ -136,14 +140,20 @@ static int upload_file(char *file, char *buff, int buff_len, int test_times, thr
     size_t fd[3000];
     conf_t *conf = &thread_info->conf;
     struct timespec tstart, tend, twrite;
-    size_t time_write, time_upload;
+    long time_write = 0, time_upload = 0;
     size_t len = strlen(performance_info);
     char file_size[128];
+    long record[1000] = {0};
+    double variance = 0.00;
+    double average = 0.00;
+    long time = 0;
+    int success_cnt;
     //写文件
     
-    clock_gettime(CLOCK_MONOTONIC, &tstart);
+    //clock_gettime(CLOCK_MONOTONIC, &tstart);
     for (i = 0; i < test_times; i++)
     {
+        clock_gettime(CLOCK_MONOTONIC, &tstart);
         fp = fopen(file, "w+");
         if (fp == NULL)
         {
@@ -157,31 +167,44 @@ static int upload_file(char *file, char *buff, int buff_len, int test_times, thr
             return -1;
         }
         fclose(fp);
+        clock_gettime(CLOCK_MONOTONIC, &twrite);
+        record[i] = calc_time(tstart, twrite);
+        time_write += record[i];
     }
-    clock_gettime(CLOCK_MONOTONIC, &twrite);
-    time_write = calc_time(tstart, twrite);
+    //clock_gettime(CLOCK_MONOTONIC, &twrite);
+    //time_write = calc_time(tstart, twrite);
     time_write /= test_times;
 
     //上传文件
-    clock_gettime(CLOCK_MONOTONIC, &tstart);
+    //clock_gettime(CLOCK_MONOTONIC, &tstart);
     for (i = 0; i < test_times; i++)
     {
+        clock_gettime(CLOCK_MONOTONIC, &tstart);
         fd[i] = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
         if (hos_write(fd[i], file, 0, thread_info->thread_num) != HOS_CLIENT_OK)
         {
             printf("error:hos_write file:%s\n", file);
             return -1;
         }
+        clock_gettime(CLOCK_MONOTONIC, &tend);
+        time = calc_time(tstart, tend);
+        time_upload += time;
+        record[i] += time;
     }
-    clock_gettime(CLOCK_MONOTONIC, &tend);
-    time_upload = calc_time(tstart, tend);
+    //clock_gettime(CLOCK_MONOTONIC, &tend);
+    //time_upload = calc_time(tstart, tend);
     time_upload /= test_times;
 
-    sprintf(file_size, "%dk", buff_len / 1024);
-    sprintf(&performance_info[len], "%-20lu%-20s%-20lu%-20lu%-20lu\n",
-            thread_info->thread_num, file_size, time_write, time_upload, time_write + time_upload);
+    average = time_write + time_upload;
+    for (i = 0; i < test_times; i++)
+    {
+        variance += pow((record[i] - average), 2);
+    }
+    variance /= test_times;
 
-    //hos_close_fd(fd, thread_info->thread_num);
+    sprintf(file_size, "%dk", buff_len / 1024);
+    sprintf(&performance_info[len], "%-20lu%-20s%-20ld%-20ld%-20lf%-20lf\n",
+            thread_info->thread_num, file_size, time_write, time_upload, average, sqrt(variance));
     
     return 0;
 }
@@ -201,109 +224,127 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
     char append_size[128];
     size_t success_cnt = 0;
     int ret = 0;
+    int drop = 0;
+    double variance = 0.00;
+    double average = 0.00;
+    long record[1000] = {0};
 
-#if 0
-    size_t time_tmp = 0;
-    while(1)
-    {
-        tmp = j * conf->append_size;
-        rest = buff_len - tmp;
-        if (rest < conf->append_size)
-        {
-            clock_gettime(CLOCK_MONOTONIC, &tstart);
-            for (i = 0; i < test_times; i++)
-            {
-                hos_write(fd, &buff[tmp], rest, thread_info->thread_num);
-            }
-            clock_gettime(CLOCK_MONOTONIC, &ttmp);
-            time_tmp = calc_time(tstart, ttmp);
-            time_tmp /= test_times;
-            time += time_tmp;
-
-            sprintf(file_size, "%dk", buff_len / 1024);
-            sprintf(append_size, "%luk", conf->append_size / 1024);
-            len = strlen(performance_info);
-            sprintf(&performance_info[len], "%-20lu%-20s%-20s%-20lu%-20lu\n",
-                    thread_info->thread_num, file_size, append_size, time_tmp, time);
-            break;
-        }
-        clock_gettime(CLOCK_MONOTONIC, &tstart);
-        for (i = 0; i < test_times; i++)
-        {
-            hos_write(fd, &buff[tmp], conf->append_size, thread_info->thread_num);
-        }
-        clock_gettime(CLOCK_MONOTONIC, &ttmp);
-        time_tmp = calc_time(tstart, ttmp);
-        time_tmp /= test_times;
-        time += time_tmp;
-
-        sprintf(file_size, "%dk", buff_len / 1024);
-        sprintf(append_size, "%luk", conf->append_size / 1024);
-        len = strlen(performance_info);
-        sprintf(&performance_info[len], "%-20lu%-20s%-20s%-20lu%-20lu\n",
-                thread_info->thread_num, file_size, append_size, time_tmp, time);
-
-        j++;
-    }
-#else
-    if (conf->mode & APPEND_MODE)
+    if (conf->slice)
     {
         fd = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
-        clock_gettime(CLOCK_MONOTONIC, &tstart);
         for (i = 0; i < test_times; i++)
         {
+            j = 0;
+            clock_gettime(CLOCK_MONOTONIC, &tstart);
             while(1)
             {
-                tmp = j * conf->append_size;
+                tmp = j * conf->slice;
                 rest = buff_len - tmp;
-                if (rest < conf->append_size)
+                if (rest < conf->slice)
                 {
                     hos_write(fd, &buff[tmp], rest, thread_info->thread_num);
                     break;
                 }
-                hos_write(fd, &buff[tmp], conf->append_size, thread_info->thread_num);
+                hos_write(fd, &buff[tmp], conf->slice, thread_info->thread_num);
                 j++;
             }
+            clock_gettime(CLOCK_MONOTONIC, &ttmp);
+            record[i] = calc_time(tstart, ttmp);
+            average += record[i];
         }
-        clock_gettime(CLOCK_MONOTONIC, &ttmp);
-        time = calc_time(tstart, ttmp);
-        time /= test_times;
+        average /= test_times;
 
-        sprintf(file_size, "%dk", buff_len / 1024);
-        sprintf(append_size, "%luk", conf->append_size / 1024);
-        len = strlen(performance_info);
-        sprintf(&performance_info[len], "%-20lu%-20s%-20s%-20d%-20lu\n",
-                thread_info->thread_num, file_size, append_size, 0, time);
-    }else
-    {
-        clock_gettime(CLOCK_MONOTONIC, &tstart);
         for (i = 0; i < test_times; i++)
         {
-            fd = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
-            ret = hos_write(fd, buff, buff_len, thread_info->thread_num);
-            if (ret == HOS_CLIENT_OK)
-            {
-                success_cnt++;
-            }else
-            {
-                printf("error code:%d\n", ret);
-            }
+            variance += pow((record[i] - average), 2);
         }
-        clock_gettime(CLOCK_MONOTONIC, &ttmp);
-        time = calc_time(tstart, ttmp);
-        if (success_cnt)
-            time /= success_cnt;
-        else
-            time /= test_times;
+        variance /= test_times;
 
         sprintf(file_size, "%dk", buff_len / 1024);
-        sprintf(append_size, "%luk", conf->append_size / 1024);
+        sprintf(append_size, "%gk", conf->append_size / 1024);
         len = strlen(performance_info);
-        sprintf(&performance_info[len], "%-20lu%-20s%-20d%-20d%-20lu\n",
-                thread_info->thread_num, file_size, 0, 0, time);
+        sprintf(&performance_info[len], "%-20lu%-20s%-20s%-20d%-20lf%-20lf\n",
+                thread_info->thread_num, file_size, append_size, 0, average, sqrt(variance));
+    }else{
+
+        if (conf->mode & APPEND_MODE)
+        {
+            fd = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
+#if 1
+            for (i = 0; i < test_times; i++)
+            {
+                clock_gettime(CLOCK_MONOTONIC, &tstart);
+#endif
+                j = 0;
+                while(1)
+                {
+                    tmp = j * conf->append_size;
+                    rest = buff_len - tmp;
+                    if (rest < conf->append_size)
+                    {
+                        hos_write(fd, &buff[tmp], rest, thread_info->thread_num);
+                        break;
+                    }
+                    hos_write(fd, &buff[tmp], conf->append_size, thread_info->thread_num);
+                    j++;
+                }
+#if 1
+                clock_gettime(CLOCK_MONOTONIC, &ttmp);
+                record[i] = calc_time(tstart, ttmp);
+                average += record[i];
+            }
+            average /= test_times;
+#endif
+
+            for (i = 0; i < test_times; i++)
+            {
+                variance += pow((record[i] - average), 2);
+            }
+            variance /= test_times;
+
+            sprintf(file_size, "%dk", buff_len / 1024);
+            sprintf(append_size, "%gk", conf->append_size / 1024);
+            len = strlen(performance_info);
+            sprintf(&performance_info[len], "%-20lu%-20s%-20s%-20d%-20lf%-20lf\n",
+                    thread_info->thread_num, file_size, append_size, 0, average,sqrt(variance));
+        }else
+        {
+            for (i = 0; i < test_times; i++)
+            {
+                clock_gettime(CLOCK_MONOTONIC, &tstart);
+                fd = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
+                ret = hos_write(fd, buff, buff_len, thread_info->thread_num);
+                if (ret == HOS_CLIENT_OK)
+                {
+                    success_cnt++;
+                }else
+                {
+                    printf("error code:%d, thread_id:%d\n", ret, thread_info->thread_num);
+                    //break;
+                }
+                clock_gettime(CLOCK_MONOTONIC, &ttmp);
+                record[i] = calc_time(tstart, ttmp);
+                average += record[i];
+            }
+            if (success_cnt)
+                average /= success_cnt;
+            else
+                average /= test_times;
+
+            for (i = 0; i < test_times; i++)
+            {
+                variance += pow((record[i] - average), 2);
+            }
+            variance /= test_times;
+
+            sprintf(file_size, "%dk", buff_len / 1024);
+            sprintf(append_size, "%luk", conf->append_size / 1024);
+            len = strlen(performance_info);
+            sprintf(&performance_info[len], "%-20lu%-20s%-20d%-20d%-20lf%-20lf\n",
+                    thread_info->thread_num, file_size, 0, 0, average, sqrt(variance));
+        }
     }
 
-#endif
     hos_close_fd(fd, thread_info->thread_num);
 
     return 0;
@@ -415,12 +456,12 @@ int main(int argc, char *argv[])
 #endif
     configuration_init(&conf);
     //读取命令行配置
-    while((ch = getopt(argc, argv, "a:e:b:o:f:p:t:k:BFAh")) != -1)
+    while((ch = getopt(argc, argv, "a:e:b:o:f:p:t:k:s:S:BFAh")) != -1)
     {
         switch(ch)
         {
             case 'a':
-                conf.append_size = 1024 * atoi(optarg);
+                conf.append_size = 1024 * atof(optarg);
                 break;
             case 'e':
                 //endpoint
@@ -461,6 +502,12 @@ int main(int argc, char *argv[])
             case 'k':
                 conf.append_size = 1024 * atoi(optarg);
                 break;
+            case 's':
+                conf.size = atoi(optarg);
+                break;
+            case 'S':
+                conf.slice = atoi(optarg);
+                break;
             case 'h':
             default:
                 printf("usage: HosClientPerformance \n[-e set endpoint] \n[-b set bucket] \n"
@@ -492,8 +539,8 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    set_thread_sum(handle, conf.thread_sum);
-    set_cache_size(handle, conf.append_size);
+    hos_set_thread_sum(handle, conf.thread_sum);
+    hos_set_cache_size(handle, conf.append_size);
 
     //创建bucket
     if (hos_create_bucket(handle, conf.bucket))
@@ -529,7 +576,7 @@ int main(int argc, char *argv[])
         }
 
         CPU_ZERO(&mask);
-        CPU_SET(thread_num + 8, &mask);
+        CPU_SET(thread_num, &mask);
         if (pthread_setaffinity_np(thread[thread_num], sizeof(mask), &mask) != 0)
         {
             printf("warning:could not set CPU affinity, continuing...\n");

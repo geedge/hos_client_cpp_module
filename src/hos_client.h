@@ -108,23 +108,23 @@ bool hos_verify_bucket(hos_client_handle handle, const char *bucket);
 *************************************************************************************/
 int hos_create_bucket(hos_client_handle handle, const char *bucket);
 /*************************************************************************************
- * 函数名： set_cache_size
+ * 函数名： hos_set_cache_size
  * 参数：   hos_client_handle handle    非空句柄
  *          size_t cache_size           append 模式每次追加的buffer大小   
 *************************************************************************************/
-void set_cache_size(hos_client_handle handle,  size_t cache_size);
+void hos_set_cache_size(hos_client_handle handle,  size_t cache_size);
 /*************************************************************************************
- * 函数名： set_cache_times
+ * 函数名： hos_set_cache_times
  * 参数：   hos_client_handle handle    非空句柄
  *          size_t cache_times           append 模式追加次数
 *************************************************************************************/
-void set_cache_times(hos_client_handle handle,  size_t cache_times);
+void hos_set_cache_times(hos_client_handle handle,  size_t cache_times);
 /*************************************************************************************
- * 函数名： set_thread_sum
+ * 函数名： hos_set_thread_sum
  * 参数：   hos_client_handle handle    非空句柄
  *          size_t thread_sum           append 模式追加次数
 *************************************************************************************/
-void set_thread_sum(hos_client_handle handle,  size_t thread_sum);
+void hos_set_thread_sum(hos_client_handle handle,  size_t thread_sum);
 /*************************************************************************************
  * 函数名： hos_upload_async
  * 参数：   hos_client_handle handle    非空句柄

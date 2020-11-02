@@ -42,10 +42,14 @@ typedef struct hos_client_handle_s
 #define HOS_FS2_STOP  2
     int *line_ids;
     int *column_ids;
-    size_t tx_pkts;
-    size_t tx_bytes;
-    size_t rx_pkts;
-    size_t rx_bytes;
+    int *tx_pkts;
+    int *tx_bytes;
+    int *rx_pkts;
+    int *rx_bytes;
+    int *tx_pkts_last;
+    int *tx_bytes_last;
+    int *rx_pkts_last;
+    int *rx_bytes_last;
 }hos_client_handle_t;
 
 hos_info_t *hash_hos_info[MAX_HOS_CLIENT_THREAD_NUM];
@@ -98,19 +102,19 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
     }
 }
 
-void set_cache_size(hos_client_handle client,  size_t cache_size)
+void hos_set_cache_size(hos_client_handle client,  size_t cache_size)
 {
     client->cache_size = cache_size;
     return ;
 }
 
-void set_cache_times(hos_client_handle client, size_t cache_times)
+void hos_set_cache_times(hos_client_handle client, size_t cache_times)
 {
     client->cache_times = cache_times;
     return ;
 }
 
-void set_thread_sum(hos_client_handle client, size_t thread_sum)
+void hos_set_thread_sum(hos_client_handle client, size_t thread_sum)
 {
     client->thread_sum = thread_sum;
     return ;
@@ -145,7 +149,7 @@ hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyi
     config.endpointOverride = endpoint;
     config.verifySSL = false;
     config.enableEndpointDiscovery = true;
-    config.executor = std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor>(std::make_shared<Aws::Utils::Threading::PooledThreadExecutor>(pool_size));//支持线程池
+    config.executor = std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor>(std::make_shared<Aws::Utils::Threading::PooledThreadExecutor>(pool_size, Aws::Utils::Threading::OverflowPolicy::REJECT_IMMEDIATELY));//支持线程池
 
     handle->S3Client = new Aws::S3::S3Client(credentials, config, Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
     handle->options = options;
@@ -167,6 +171,15 @@ hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyi
 static void *fs2_statistics(void *ptr)
 {
     hos_client_handle handle = (hos_client_handle)ptr;
+    int i = 0;
+    int rx_pkts_sum = 0;
+    int rx_bytes_sum = 0;
+    int tx_pkts_sum = 0;
+    int tx_bytes_sum = 0;
+    int rx_pkts_sum_interval = 0;
+    int rx_bytes_sum_interval = 0;
+    int tx_pkts_sum_interval = 0;
+    int tx_bytes_sum_interval = 0;
 
     while(1)
     {
@@ -174,17 +187,53 @@ static void *fs2_statistics(void *ptr)
         {
             break;
         }
-        FS_operate(handle->fs2_handle, handle->line_ids[0], handle->column_ids[0], FS_OP_ADD, handle->tx_pkts);
-        FS_operate(handle->fs2_handle, handle->line_ids[0], handle->column_ids[1], FS_OP_ADD, handle->tx_bytes);
-        FS_operate(handle->fs2_handle, handle->line_ids[0], handle->column_ids[2], FS_OP_ADD, handle->rx_pkts);
-        FS_operate(handle->fs2_handle, handle->line_ids[0], handle->column_ids[3], FS_OP_ADD, handle->rx_bytes);
 
-        FS_operate(handle->fs2_handle, handle->line_ids[1], handle->column_ids[0], FS_OP_SET, handle->tx_pkts * 10);
-        FS_operate(handle->fs2_handle, handle->line_ids[1], handle->column_ids[1], FS_OP_SET, handle->tx_bytes * 10);
-        FS_operate(handle->fs2_handle, handle->line_ids[1], handle->column_ids[2], FS_OP_SET, handle->rx_pkts * 10);
-        FS_operate(handle->fs2_handle, handle->line_ids[1], handle->column_ids[3], FS_OP_SET, handle->rx_bytes * 10);
+        rx_pkts_sum = 0;
+        rx_bytes_sum = 0;
+        tx_pkts_sum = 0;
+        tx_bytes_sum = 0;
+        rx_pkts_sum_interval = 0;
+        rx_bytes_sum_interval = 0;
+        tx_pkts_sum_interval = 0;
+        tx_bytes_sum_interval = 0;
 
-        usleep(100);
+        for (i = 0; i < (int)handle->thread_sum; i++)
+        {
+            rx_pkts_sum += handle->rx_pkts[i];
+            rx_bytes_sum += handle->rx_bytes[i];
+            tx_pkts_sum += handle->tx_pkts[i];
+            tx_bytes_sum += handle->tx_bytes[i];
+            rx_pkts_sum_interval += (handle->rx_pkts[i] - handle->rx_pkts_last[i]);
+            rx_bytes_sum_interval += (handle->rx_bytes[i] - handle->rx_bytes_last[i]);
+            tx_pkts_sum_interval += (handle->tx_pkts[i] - handle->tx_pkts_last[i]);
+            tx_bytes_sum_interval += (handle->tx_bytes[i] - handle->tx_bytes_last[i]);
+
+            FS_operate(handle->fs2_handle, handle->line_ids[2 * i], handle->column_ids[0], FS_OP_SET, handle->rx_pkts[i]);
+            FS_operate(handle->fs2_handle, handle->line_ids[2 * i], handle->column_ids[1], FS_OP_SET, handle->rx_bytes[i]);
+            FS_operate(handle->fs2_handle, handle->line_ids[2 * i], handle->column_ids[2], FS_OP_SET, handle->tx_pkts[i]);
+            FS_operate(handle->fs2_handle, handle->line_ids[2 * i], handle->column_ids[3], FS_OP_SET, handle->tx_bytes[i]);
+
+            FS_operate(handle->fs2_handle, handle->line_ids[2 * i + 1], handle->column_ids[0], FS_OP_SET, (handle->rx_pkts[i] - handle->rx_pkts_last[i]));
+            FS_operate(handle->fs2_handle, handle->line_ids[2 * i + 1], handle->column_ids[1], FS_OP_SET, (handle->rx_bytes[i] - handle->rx_bytes_last[i]));
+            FS_operate(handle->fs2_handle, handle->line_ids[2 * i + 1], handle->column_ids[2], FS_OP_SET, (handle->tx_pkts[i] - handle->tx_pkts_last[i]));
+            FS_operate(handle->fs2_handle, handle->line_ids[2 * i + 1], handle->column_ids[3], FS_OP_SET, (handle->tx_bytes[i] - handle->tx_bytes_last[i]));
+
+            handle->rx_pkts_last[i] = handle->rx_pkts[i];
+            handle->rx_bytes_last[i] = handle->rx_bytes[i];
+            handle->tx_pkts_last[i] = handle->tx_pkts[i];
+            handle->tx_bytes_last[i] = handle->tx_bytes[i];
+        }
+        FS_operate(handle->fs2_handle, handle->line_ids[2 * handle->thread_sum], handle->column_ids[0], FS_OP_SET, rx_pkts_sum);
+        FS_operate(handle->fs2_handle, handle->line_ids[2 * handle->thread_sum], handle->column_ids[1], FS_OP_SET, rx_bytes_sum);
+        FS_operate(handle->fs2_handle, handle->line_ids[2 * handle->thread_sum], handle->column_ids[2], FS_OP_SET, tx_pkts_sum);
+        FS_operate(handle->fs2_handle, handle->line_ids[2 * handle->thread_sum], handle->column_ids[3], FS_OP_SET, tx_bytes_sum);
+
+        FS_operate(handle->fs2_handle, handle->line_ids[2 * handle->thread_sum + 1], handle->column_ids[0], FS_OP_SET, rx_pkts_sum_interval);
+        FS_operate(handle->fs2_handle, handle->line_ids[2 * handle->thread_sum + 1], handle->column_ids[1], FS_OP_SET, rx_bytes_sum_interval);
+        FS_operate(handle->fs2_handle, handle->line_ids[2 * handle->thread_sum + 1], handle->column_ids[2], FS_OP_SET, tx_pkts_sum_interval);
+        FS_operate(handle->fs2_handle, handle->line_ids[2 * handle->thread_sum + 1], handle->column_ids[3], FS_OP_SET, tx_bytes_sum_interval);
+
+        sleep(1);
     }
     pthread_exit(NULL);
 }
@@ -193,10 +242,9 @@ void hos_expand_fs2(hos_client_handle handle, const char * path, int format, cha
 {
     screen_stat_handle_t fs2_handle = NULL;
     const char *app_name = "hos-sdk-client-cpp";
-    int *line_ids = (int *)malloc(sizeof(int) * 2);
-    int *column_ids = (int *)malloc(sizeof(int) * 4);
     int value = 0;
     char buff[128];
+    int i = 0;
 
     fs2_handle = FS_create_handle();
 
@@ -212,6 +260,7 @@ void hos_expand_fs2(hos_client_handle handle, const char * path, int format, cha
     value = 1;
     FS_set_para(fs2_handle, CREATE_THREAD, &value, sizeof(value));
     FS_set_para(fs2_handle, METRIS_FORMAT, &format, sizeof(format));
+    FS_set_para(fs2_handle, STAT_CYCLE, &value, sizeof(value));
     value = 4096;
     FS_set_para(fs2_handle, MAX_STAT_FIELD_NUM, &value, sizeof(value));
     if (server_ip == NULL)
@@ -224,24 +273,46 @@ void hos_expand_fs2(hos_client_handle handle, const char * path, int format, cha
 
     FS_set_para(fs2_handle, STATS_SERVER_PORT, &port, sizeof(port));
 
+    value = FS_OUTPUT_STATSD;
+    FS_set_para(fs2_handle, STATS_FORMAT, &value, sizeof(value));
+
+    int *line_ids = (int *)calloc(2 * handle->thread_sum + 2, sizeof(int));
+    int *column_ids = (int *)calloc(4, sizeof(int));
+
     //line info
-    snprintf(buff, sizeof(buff), "tx_pkts");
-    column_ids[0] = FS_register(fs2_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT, buff);
-    snprintf(buff, sizeof(buff), "tx_bytes");
-    column_ids[1] = FS_register(fs2_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT, buff);
     snprintf(buff, sizeof(buff), "rx_pkts");
-    column_ids[2] = FS_register(fs2_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT, buff);
+    column_ids[0] = FS_register(fs2_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT, buff);
     snprintf(buff, sizeof(buff), "rx_bytes");
+    column_ids[1] = FS_register(fs2_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT, buff);
+    snprintf(buff, sizeof(buff), "tx_pkts");
+    column_ids[2] = FS_register(fs2_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT, buff);
+    snprintf(buff, sizeof(buff), "tx_bytes");
     column_ids[3] = FS_register(fs2_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT, buff);
+    for (i = 0; i < (int)handle->thread_sum; i++)
+    {
+        snprintf(buff, sizeof(buff), "total(%d)", i);
+        line_ids[2 * i] = FS_register(fs2_handle, FS_STYLE_LINE, FS_CALC_CURRENT, buff);
+        snprintf(buff, sizeof(buff), "rate(%d)", i);
+        line_ids[2 * i + 1] = FS_register(fs2_handle, FS_STYLE_LINE, FS_CALC_CURRENT, buff);
+    }
     snprintf(buff, sizeof(buff), "total");
-    line_ids[0] = FS_register(fs2_handle, FS_STYLE_LINE, FS_CALC_CURRENT, buff);
-    snprintf(buff, sizeof(buff), "speed/s");
-    line_ids[1] = FS_register(fs2_handle, FS_STYLE_LINE, FS_CALC_CURRENT, buff);
+    line_ids[2 * handle->thread_sum] = FS_register(fs2_handle, FS_STYLE_LINE, FS_CALC_CURRENT, buff);
+    snprintf(buff, sizeof(buff), "rate");
+    line_ids[2 * handle->thread_sum + 1] = FS_register(fs2_handle, FS_STYLE_LINE, FS_CALC_CURRENT, buff);
 
     handle->fs2_handle = fs2_handle;
     handle->line_ids = line_ids;
     handle->column_ids = column_ids;
     handle->fs2_status = HOS_FS2_START;
+
+    handle->tx_pkts = (int *)calloc(handle->thread_sum, sizeof(int));
+    handle->tx_bytes = (int *)calloc(handle->thread_sum, sizeof(int));
+    handle->rx_pkts = (int *)calloc(handle->thread_sum, sizeof(int));
+    handle->rx_bytes = (int *)calloc(handle->thread_sum, sizeof(int));
+    handle->tx_pkts_last = (int *)calloc(handle->thread_sum, sizeof(int));
+    handle->tx_bytes_last = (int *)calloc(handle->thread_sum, sizeof(int));
+    handle->rx_pkts_last = (int *)calloc(handle->thread_sum, sizeof(int));
+    handle->rx_bytes_last = (int *)calloc(handle->thread_sum, sizeof(int));
 
     FS_start(fs2_handle);
 
@@ -382,7 +453,7 @@ int hos_open_fd(hos_client_handle handle, const char *bucket, const char *object
         return HOS_FD_NOT_ENOUGH;
     }
     
-    hos_info_t info = {fd, mode, handle, bucket, object, (void *)callback, userdata, NULL, handle->cache_size, handle->cache_times, 0, };
+    hos_info_t info = {fd, mode, handle, bucket, object, (void *)callback, userdata, NULL, handle->cache_times, handle->cache_size, 0, };
     add_hos_info(&hash_hos_info[thread_id], &info);
     fd_info[thread_id][fd] = 1;
 
@@ -416,8 +487,11 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
     handle = (hos_client_handle)hos_info->handle;
     
     //field_stat2 record
-    handle->rx_pkts++;
-    handle->rx_bytes += stream_len;
+    if (handle->fs2_handle)
+    {
+        handle->rx_pkts[thread_id]++;
+        handle->rx_bytes[thread_id] += stream_len;
+    }
 
     Aws::S3::S3Client& S3Client = *(handle->S3Client);
 
@@ -507,19 +581,22 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
     }
     if (ret)
     {
-        handle->tx_pkts++;
-        if (hos_info->mode & BUFF_MODE)
+        if (handle->fs2_handle)
         {
-            if (hos_info->mode & APPEND_MODE)
+            handle->tx_pkts[thread_id]++;
+            if (hos_info->mode & BUFF_MODE)
             {
-                handle->tx_bytes += handle->cache_size;
+                if (hos_info->mode & APPEND_MODE)
+                {
+                    handle->tx_bytes[thread_id] += handle->cache_size;
+                }else
+                {
+                    handle->tx_bytes[thread_id] += stream_len;
+                }
             }else
             {
-                handle->tx_bytes += stream_len;
+                handle->tx_bytes[thread_id] += buffer.st_size;
             }
-        }else
-        {
-            handle->tx_bytes += buffer.st_size;
         }
         while (flag == 1)
         {
@@ -562,19 +639,31 @@ int hos_client_destory(hos_client_handle handle)
     {
         delete_all(&hash_hos_info[i]);
     }
-    handle->fs2_status = HOS_FS2_STOP;
-    pthread_join(handle->fs2_thread, NULL);
     if (handle->fs2_handle)
     {
+        handle->fs2_status = HOS_FS2_STOP;
+        pthread_join(handle->fs2_thread, NULL);
         FS_stop(&handle->fs2_handle);
-    }
-    if (handle->line_ids)
-    {
-        free(handle->line_ids);
-    }
-    if (handle->column_ids)
-    {
-        free(handle->column_ids);
+        if (handle->rx_pkts)
+            free(handle->rx_pkts);
+        if (handle->rx_bytes)
+            free(handle->rx_bytes);
+        if (handle->tx_pkts)
+            free(handle->tx_pkts);
+        if (handle->tx_bytes)
+            free(handle->tx_bytes);
+        if (handle->rx_pkts_last)
+            free(handle->rx_pkts_last);
+        if (handle->rx_bytes_last)
+            free(handle->rx_bytes_last);
+        if (handle->tx_pkts_last)
+            free(handle->tx_pkts_last);
+        if (handle->tx_bytes_last)
+            free(handle->tx_bytes_last);
+        if (handle->line_ids)
+            free(handle->line_ids);
+        if (handle->column_ids)
+            free(handle->column_ids);
     }
     free(handle);
 

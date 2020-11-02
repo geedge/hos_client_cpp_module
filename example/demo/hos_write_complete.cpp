@@ -70,18 +70,15 @@ int main(int argc, char *argv[])
     char *bucket = argv[1];
     char *object = argv[2];
     int test_times = atoi(argv[3]);
-    //int test_times = 10000;
     char *buf = (char *)malloc(1024 * 1024 * 40);
-    //char buf[1024 * 1024 * 4];
-    //char buf[1024 * 4];
     size_t buf_size;
     int mode = FILE_MODE;
     size_t fd[10001] = {0}; 
     userdata_t data = {&finished};
-    //printf("finished:%lu\n", finished.tv_sec * 1000 * 1000 * 1000 + finished.tv_nsec);
 
     file_to_buffer(object, buf, &buf_size);
 
+    hos_init_api();
     debuginfo("hos_client_init start ...\n");
     hos_client_handle handle = hos_client_create("http://192.168.40.223:9098/hos/", "default", "default", 4000);
     //hos_client_handle handle = hos_client_create("http://192.168.32.10:9098/hos/", "default", "default", 4);
@@ -110,11 +107,6 @@ int main(int argc, char *argv[])
     
 #if 1
     mode = FILE_MODE;
-#if 0
-    for (i = 0; i < test_times; i++)
-    {
-    }
-#endif
     debuginfo("hos_upload_file start ...\n");
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (i = 0; i < test_times; i++)
@@ -165,6 +157,7 @@ int main(int argc, char *argv[])
     }
 
     debuginfo("hos_client_close end ...\n");
+    hos_shutdown_api();
     free(buf);
     return 0;
 }
