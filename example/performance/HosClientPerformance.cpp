@@ -102,7 +102,7 @@ int read_file_list(const char *path, char file_name[][256])
     return 0;
 }
 
-static void callback(bool result, const char *error, void *userdata)
+static void callback(bool result, const char *error, const char *bucket, const char *object, void *userdata)
 {
 #if 0
     userdata_t *data = (userdata_t *)userdata;

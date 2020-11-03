@@ -91,7 +91,7 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
         return ; 
     }
     put_finished_callback callback = (put_finished_callback)hos_info->callback;
-    callback(result, error, hos_info->userdata);
+    callback(result, hos_info->bucket, hos_info->object, error, hos_info->userdata);
     if (hos_info->mode & APPEND_MODE)
     {
         //APPEND MODE 保留fd
@@ -612,9 +612,50 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
 
 int hos_close_fd(size_t fd, size_t thread_id)
 {
+    hos_info_t *hos_info;
+    char num[128];
+    char buf[128];
     if (fd == 0)
     {
         return HOS_PARAMETER_ERROR;
+    }
+    if (fd_info[thread_id][fd])
+    {
+        hos_info = find_info_by_fd(hash_hos_info[thread_id], fd);
+    }
+    if (hos_info == NULL)
+    {
+        return HOS_CLIENT_OK; 
+    }
+
+    //close fd 之前发送append的缓存中内容
+    if ((hos_info->mode & BUFF_MODE) && (hos_info->mode & APPEND_MODE))
+    {
+        if (hos_info->cache_rest != hos_info->handle->cache_size)
+        {
+            //handle = (hos_client_handle)hos_info->handle;
+            Aws::S3::S3Client& S3Client = *(hos_info->handle->S3Client);
+
+            // Create and configure the asynchronous put object request.
+            Aws::S3::Model::PutObjectRequest request;
+            request.SetBucket(hos_info->bucket);
+            request.SetKey(hos_info->object);
+            request.SetBody(hos_info->cache);
+
+            // add headers
+            snprintf(num, 128, "%lu", ++hos_info->position);
+            Aws::Map<Aws::String, Aws::String> headers;
+            headers["x-hos-upload-type"] = "append";
+            headers["x-hos-position"] = num;
+            request.SetMetadata(headers);
+
+            std::shared_ptr<Aws::Client::AsyncCallerContext> context = 
+                Aws::MakeShared<Aws::Client::AsyncCallerContext>("");
+            sprintf(buf, "%lu %lu", thread_id, fd);
+            context->SetUUID(buf);
+
+            S3Client.PutObjectAsync(request, PutObjectAsyncFinished, context);
+        }
     }
 
     delete_info_by_fd(&hash_hos_info[thread_id], fd);

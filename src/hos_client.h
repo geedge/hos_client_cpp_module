@@ -73,7 +73,7 @@ enum s3errors
   OBJECT_NOT_IN_ACTIVE_TIER
 };
 
-typedef void (*put_finished_callback)(bool, const char *, void *);
+typedef void (*put_finished_callback)(bool, const char *, const char *, const char *, void *);
 
 
 /*************************************************************************************
