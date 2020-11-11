@@ -102,7 +102,7 @@ int read_file_list(const char *path, char file_name[][256])
     return 0;
 }
 
-static void callback(bool result, const char *error, void *userdata)
+static void callback(bool result, const char *error, const char *bucket, const char *object, void *userdata)
 {
 #if 0
     userdata_t *data = (userdata_t *)userdata;
@@ -541,6 +541,7 @@ int main(int argc, char *argv[])
 
     hos_set_thread_sum(handle, conf.thread_sum);
     hos_set_cache_size(handle, conf.append_size);
+    hos_set_cache_times(handle, 0);
 
     //创建bucket
     if (hos_create_bucket(handle, conf.bucket))

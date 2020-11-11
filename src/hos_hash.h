@@ -15,15 +15,20 @@ typedef struct hos_info_s
     size_t fd;
     int  mode;
     hos_client_handle handle; 
-    const char *bucket;
-    const char *object;
+    char *bucket;
+    char *object;
     void *callback;
     void *userdata;
     std::shared_ptr<Aws::IOStream> cache;
-    //void *cache;
     size_t cache_times;
     size_t cache_rest;
     size_t position;
+    size_t recive_cnt;
+    int fd_status;
+#define HOS_FD_REGISTER 0
+#define HOS_FD_INJECT 1
+    size_t overtime;    //计算后超时的时间
+    size_t timeout;     //配置的超时时间，从status变成INJECT开始计时
     UT_hash_handle hh;
 }hos_info_t;
 

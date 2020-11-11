@@ -50,7 +50,7 @@ int file_to_buffer(const char *file, char *buffer, size_t *len)
     return 0;
 }
 
-void callback(bool result, const char *error, void *userdata)
+void callback(bool result, const char *error, const char *bucket, const char *object, void *userdata)
 {
     userdata_t *data = (userdata_t *)userdata;
     clock_gettime(CLOCK_MONOTONIC, data->finished);

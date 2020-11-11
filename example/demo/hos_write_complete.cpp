@@ -50,7 +50,7 @@ int file_to_buffer(const char *file, char *buffer, size_t *len)
     return 0;
 }
 
-void callback(bool result, const char *error, void *userdata)
+void callback(bool result, const char *error, const char *bucket, const char *object, void *userdata)
 {
     userdata_t *data = (userdata_t *)userdata;
     clock_gettime(CLOCK_MONOTONIC, data->finished);
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 
     hos_init_api();
     debuginfo("hos_client_init start ...\n");
-    hos_client_handle handle = hos_client_create("http://192.168.40.223:9098/hos/", "default", "default", 4000);
+    hos_client_handle handle = hos_client_create("http://192.168.40.223:9098/hos/", "default", "default", 400);
     //hos_client_handle handle = hos_client_create("http://192.168.32.10:9098/hos/", "default", "default", 4);
     if (handle == NULL) 
     {
