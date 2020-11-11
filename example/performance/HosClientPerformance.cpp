@@ -541,6 +541,7 @@ int main(int argc, char *argv[])
 
     hos_set_thread_sum(handle, conf.thread_sum);
     hos_set_cache_size(handle, conf.append_size);
+    hos_set_cache_times(handle, 0);
 
     //创建bucket
     if (hos_create_bucket(handle, conf.bucket))
