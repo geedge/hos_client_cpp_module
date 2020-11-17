@@ -48,7 +48,7 @@ develop_build_debug:
     BUILD_TYPE: Debug
     PACKAGE: 1
   artifacts:
-    name: "hos_client_cpp-$CI_COMMIT_REF_NAME-debug"
+    name: "hos-client-cpp-$CI_COMMIT_REF_NAME-debug"
     paths:
       - build/*.rpm
   only:
@@ -62,7 +62,7 @@ develop_build_release:
     BUILD_TYPE: RelWithDebInfo
     PACKAGE: 1
   artifacts:
-    name: "hos_client_cpp-$CI_COMMIT_REF_NAME-release"
+    name: "hos-client-cpp-$CI_COMMIT_REF_NAME-release"
     paths:
       - build/*.rpm
   only:
@@ -80,7 +80,7 @@ release_build_release:
     PULP3_DIST_NAME: framework-stable-x86_64.el7
   extends: .build_by_travis
   artifacts:
-    name: "hos_client_cpp-$CI_COMMIT_REF_NAME-release"
+    name: "hos-client-cpp-$CI_COMMIT_REF_NAME-release"
     paths:
       - build/*.rpm
   only:
