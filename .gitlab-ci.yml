@@ -2,7 +2,7 @@ image: "git.mesalab.cn:7443/mesa_platform/build-env:master"
 variables:
   GIT_STRATEGY: "clone"
   BUILD_PADDING_PREFIX: /tmp/padding_for_CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX_PREFIX_PREFIX_PREFIX_PREFIX_PREFIX/
-  INSTALL_PREFIX: "/home/MESA/lib"
+  INSTALL_PREFIX: "/home/mesasoft/sapp_run/"
   INSTALL_DEPENDENCY_LIBRARY: libMESA_handle_logger-devel  libcjson-devel libMESA_field_stat2-devel  sapp-devel framework_env  libMESA_prof_load-devel http-devel dns-devel ftp-devel mail-devel ssl-devel  librdkafka-devel libmaatframe-devel tsg_master-devel libdocumentanalyze-devel zlib-devel openssl-devel curl-devel
 
 stages:
