@@ -78,7 +78,6 @@ int main(int argc, char *argv[])
 
     file_to_buffer(object, buf, &buf_size);
 
-    hos_init_api();
     debuginfo("hos_client_init start ...\n");
     hos_client_handle handle = hos_client_create("http://192.168.40.223:9098/hos/", "default", "default", 400);
     //hos_client_handle handle = hos_client_create("http://192.168.32.10:9098/hos/", "default", "default", 4);
@@ -157,7 +156,6 @@ int main(int argc, char *argv[])
     }
 
     debuginfo("hos_client_close end ...\n");
-    hos_shutdown_api();
     free(buf);
     return 0;
 }
