@@ -152,18 +152,6 @@ void hos_set_thread_sum(hos_client_handle client, size_t thread_sum)
     return ;
 }
 
-void hos_init_api()
-{
-    //options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
-    Aws::InitAPI(options);
-}
-
-void hos_shutdown_api()
-{
-    //options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
-    Aws::ShutdownAPI(options);
-}
-
 hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyid, const char *secretkey, size_t pool_size)
 {
     if (!endpoint || !accesskeyid || !secretkey)
@@ -175,6 +163,8 @@ hos_client_handle hos_client_create(const char *endpoint, const char *accesskeyi
     {
         return hos_handle;
     }
+
+    Aws::InitAPI(options);
     hos_handle = (hos_client_handle)malloc(sizeof(hos_client_handle_t));
     memset(hos_handle, 0, sizeof(hos_client_handle_t));
     Aws::Client::ClientConfiguration config;
@@ -813,6 +803,8 @@ int hos_client_destory(hos_client_handle handle)
             free(handle->column_ids);
     }
     free(handle);
+
+    Aws::ShutdownAPI(options);
 
     return HOS_CLIENT_OK;
 }
