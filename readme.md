@@ -12,6 +12,16 @@ Object的键（Key）可以很长，甚至按照一定前缀格式来指定，�
 ## Signature
 连接Hos服务器需要验证，Hos系统采取Aws S3的验证方式：Signature Version 4 （客户端使用）和 Token（网页使用）。  
 Signature Version 4需要两个参数，accesskeyid 和secretkey。
+## 完整上传
+完整上传，顾名思义就是一个object一次性上传完整。
+## 分段上传
+分段上传与Aws S3的分段上传有所区别。Aws S3的完整上传是将内容分成几部分上传到服务器，并由客户端上传开始和结束的标识以及整个上传过程中的序号给服务器进行验证，只有服务器验证完整之后才会在服务器上生成这个object，否则机会丢弃整个上传的内容。Hos Client改进分段上传机制，Hos Client 上传的时候只需要标识这是一个分段上传的object，并且在上传的时候Hos client会自动给每次上传的内容生成一个序号标识，用来给服务器保证内容的完整性和有序性。这种分段上传机制，在一开始上传的时候就会在服务器生成一个object，之后的上传的内容都是在这个object上进行append操作。
+## fd
+Hos Client衍生出来的概念。这个fd可以类比为C语言标准库的文件描述符。Hos Client的fd标识一次完整的Object的上传过程。fd的是从3开始，上限最大是65535。
+fd存在三种状态：REGISTER、INJECT、FREE。
+REGISTER：fd可以正常进行缓存上传操作和处理服务器响应
+INJECT：fd已经不用于缓存上传，只用于处理服务器响应
+FREE：fd 处于空闲状态，等待REGISTER，不用于其他任何操作。
 # 简单用法
 1. 创建一个hos client
 
@@ -96,8 +106,23 @@ Signature Version 4需要两个参数，accesskeyid 和secretkey。
 为了在不影响用户体验的情况下，尽量避免出现这种情况就提出了Hos的缓存机制。
 
 ## Hos 缓存机制简介
-Hos 的缓存机制只存在于
-Hos client 提供了三个API来设置一些特殊参数。
-1. hos_set_cache_times
-2. hos_set_cache_size
-3. hos_set_thread_sum
+Hos 的缓存机制只存在于分段上传模式中。分段上传过程中，通过设置cache_size参数来启动Hos的缓存机制。cache_size的作用是设置一个最大的缓存大小，只有待上传的内容大于等于cache_size的时候才换触发上传操作。除了cache_size之外，还有一个cahce_count参数用来辅助缓存机制的。cache_count的作用是，防止多次缓存却一直满足不了cache_size大小，导致缓存长时间存在而不上传的情况出现。cache_size和cahce_count，只要有一个满足条件就会立即触发上传。
+Hos client 提供了API来设置这两个参数
+hos_set_cache_size 和 hos_set_cache_count。这两个API都是作用于整个客户端，必须在hos_open_fd之前使用。在调用者两个API之前获取到的fd，不会对这两个配置生效。size的单位是Byte。
+示例：
+
+        int mode = BUFF_MODE | APPEND_MODE;
+        char *bucket = "myBucket";
+        char *object = "myObject";
+        size_t thread_id = 0;
+        void *userdata = NULL;
+        char *stream = "hello Hos!";
+        hos_set_cache_size(handle, 100);
+        hos_set_cache_count(handle, 100);
+        size_t fd = hos_open_fd(handle, bucket, object, callback, userdata, thread_id, mode);
+        hos_write(fd, stream, strlen(stream), thread_id);
+        hos_close_fd(fd, thread_id);    
+        
+## fieldstat2 显示
+Hos Client使用fieldstat2 进行信息监控，监控内容包括：收发的pkts和bytes，fd的使用情况，缓存的使用情况
+
