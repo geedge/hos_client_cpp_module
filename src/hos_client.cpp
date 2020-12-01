@@ -963,6 +963,11 @@ int hos_client_destory(hos_client_handle handle)
         }
     }
 
+    if (hos_cache)
+    {
+        free(hos_cache);
+    }
+
     for (i = 0; i < handle->thread_sum; i++)
     {
         delete_all(&hash_hos_info[i]);
