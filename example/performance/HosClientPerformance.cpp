@@ -14,6 +14,7 @@ extern "C"
 #include<dirent.h>
 #include<sys/stat.h>
 #include<math.h>
+#include<netinet/in.h>
 }
 #include"../../src/hos_client.h"
 
@@ -25,10 +26,11 @@ extern "C"
 typedef struct conf_s
 {
 #define STRING_SIZE 128
-    char endpoint[STRING_SIZE];
+    char serverip[INET_ADDRSTRLEN];
     char bucket[STRING_SIZE];
     char object[STRING_SIZE];
     char file[STRING_SIZE];
+    size_t port;
     size_t pool_size;
     size_t thread_sum;
     size_t size;
@@ -46,10 +48,11 @@ typedef struct thread_info_s
 
 static void configuration_init(conf_t *conf)
 {
-    strcpy(conf->endpoint, "http://192.168.40.223:9098/hos/");
+    strcpy(conf->serverip, "192.168.40.223");
     strcpy(conf->bucket, "mybucket");
     strcpy(conf->object, "myobject");
     strcpy(conf->file, "./file/test.txt");
+    conf->port = 9098;
     conf->pool_size = 4000;
     conf->append_size = 1024;
     conf->thread_sum = 1;
@@ -456,17 +459,17 @@ int main(int argc, char *argv[])
 #endif
     configuration_init(&conf);
     //读取命令行配置
-    while((ch = getopt(argc, argv, "a:e:b:o:f:p:t:k:s:S:BFAh")) != -1)
+    while((ch = getopt(argc, argv, "a:b:o:f:p:t:k:s:i:P:S:BFAh")) != -1)
     {
         switch(ch)
         {
             case 'a':
                 conf.append_size = 1024 * atof(optarg);
                 break;
-            case 'e':
+            case 'i':
                 //endpoint
                 buf_size = MIN(STRING_SIZE,  strlen(optarg));
-                strncpy((char *)conf.endpoint, optarg, buf_size);
+                strncpy((char *)conf.serverip, optarg, buf_size);
                 break; 
             case 'b':
                 buf_size = MIN(STRING_SIZE,  strlen(optarg));
@@ -483,7 +486,7 @@ int main(int argc, char *argv[])
                 strncpy(conf.file, optarg, buf_size);
                 conf.file[buf_size] = '\0';
                 break;
-            case 'p':
+            case 'P':
                 conf.pool_size = atoi(optarg);
                 conf.pool_size = MIN(4000, conf.pool_size);
                 break;
@@ -508,6 +511,9 @@ int main(int argc, char *argv[])
             case 'S':
                 conf.slice = atoi(optarg);
                 break;
+            case 'p':
+                conf.port = atoi(optarg);
+                break;
             case 'h':
             default:
                 printf("usage: HosClientPerformance \n[-e set endpoint] \n[-b set bucket] \n"
@@ -530,7 +536,7 @@ int main(int argc, char *argv[])
         return -1;
     }
     //创建client
-    hos_client_handle handle = hos_client_create(conf.endpoint, "default", "default", conf.pool_size);
+    hos_client_handle handle = hos_client_create(conf.serverip, conf.port, "default", "default", conf.pool_size);
     if (handle == NULL)
     {
         printf("error:hos_client_handle\n");
@@ -540,7 +546,7 @@ int main(int argc, char *argv[])
 
     hos_set_thread_sum(handle, conf.thread_sum);
     hos_set_cache_size(handle, conf.append_size);
-    hos_set_cache_times(handle, 0);
+    hos_set_cache_count(handle, 0);
 
     //创建bucket
     if (hos_create_bucket(handle, conf.bucket))
@@ -560,6 +566,7 @@ int main(int argc, char *argv[])
         printf("%-20s%-20s%-20s%-20s%-20s\n", "thread_id", "file_size", "write_time", "upload_time", "total_time");
     }
     hos_expand_fs2(handle, "./log/fs2.log", 0, "127.0.0.1", 8001);
+    //hos_expand_fs2(handle, NULL, 0, "127.0.0.1", 8001);
     for ( thread_num = 0; thread_num < conf.thread_sum; thread_num++ )
     {
         thread_info[thread_num].conf = conf;

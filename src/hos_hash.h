@@ -20,13 +20,14 @@ typedef struct hos_info_s
     void *callback;
     void *userdata;
     std::shared_ptr<Aws::IOStream> cache;
-    size_t cache_times;
+    size_t cache_count;
     size_t cache_rest;
     size_t position;
     size_t recive_cnt;
     int fd_status;
-#define HOS_FD_REGISTER 0
-#define HOS_FD_INJECT 1
+#define HOS_FD_FREE 0
+#define HOS_FD_REGISTER 1
+#define HOS_FD_INJECT 2
     size_t overtime;    //计算后超时的时间
     size_t timeout;     //配置的超时时间，从status变成INJECT开始计时
     UT_hash_handle hh;
