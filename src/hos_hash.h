@@ -21,9 +21,9 @@ typedef struct hos_info_s
     void *userdata;
     std::shared_ptr<Aws::IOStream> cache;
     size_t cache_count;
-    size_t cache_rest;
     size_t position;
     size_t recive_cnt;
+    long cache_rest;
     int fd_status;
 #define HOS_FD_FREE 0
 #define HOS_FD_REGISTER 1
