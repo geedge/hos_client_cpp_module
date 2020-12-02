@@ -125,4 +125,15 @@ hos_set_cache_size 和 hos_set_cache_count。这两个API都是作用于整个�
         
 ## fieldstat2 显示
 Hos Client使用fieldstat2 进行信息监控，监控内容包括：收发的pkts和bytes，fd的使用情况，缓存的使用情况
+Hos client 通过使用hos_expand_fs2来启用fieldstat2功能。
+示例：
+
+        fs2_path = "./log/fs2";
+        int format = 0;
+        char fs2_serverip = "127.0.0.1";
+        char fs2_serverport = 10086;
+        hos_expand_fs2(handle, fs2_path, format, "127.0.0.1", 10086);
+
+其中fs2_path为本地日志落地路径，日志以天为一个周期，如果fs2_path为空则屏显输出；format 为0表示以默认输出，1表示Json输出；
+fs2_serverip 和 port表示日志需要发送去的地方。
 
