@@ -1,1 +1,0 @@
-cmd='cd;/home/pxz/project/hos_client_cpp_module/support/aws-sdk-cpp-master/aws-sdk-cpp-master/src/aws-sdk-cpp-master;&&;cmake;.;-DBUILD_ONLY=s3;-DCMAKE_BUILD_TYPE=Debug'

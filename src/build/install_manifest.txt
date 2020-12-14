@@ -1,1 +1,0 @@
-/opt/MESA/lib/libhos_client_cpp.so

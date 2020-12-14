@@ -1,1 +1,0 @@
-/usr/bin/c++ -fPIC  -shared -fPIC -std=c++11 -g  -shared -Wl,-soname,libhos_client_cpp.so -o libhos_client_cpp.so CMakeFiles/hos_client_cpp_shared.dir/hos_client.cpp.o CMakeFiles/hos_client_cpp_shared.dir/hos_hash.cpp.o  -laws-cpp-sdk-s3 -laws-cpp-sdk-core 

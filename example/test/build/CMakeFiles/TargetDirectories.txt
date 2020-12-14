@@ -1,3 +1,0 @@
-/home/pxz/project/hos_client_cpp_module/example/test/build/CMakeFiles/rebuild_cache.dir
-/home/pxz/project/hos_client_cpp_module/example/test/build/CMakeFiles/edit_cache.dir
-/home/pxz/project/hos_client_cpp_module/example/test/build/CMakeFiles/hos_write_complete.dir
