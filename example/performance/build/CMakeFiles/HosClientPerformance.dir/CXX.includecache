@@ -1,0 +1,34 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/pxz/project/hos_client_cpp_module/example/performance/HosClientPerformance.cpp
+stdio.h
+-
+stdlib.h
+-
+unistd.h
+-
+string.h
+-
+time.h
+-
+pthread.h
+-
+dirent.h
+-
+sys/stat.h
+-
+math.h
+-
+netinet/in.h
+-
+../../src/hos_client.h
+/home/pxz/project/hos_client_cpp_module/src/hos_client.h
+
+/home/pxz/project/hos_client_cpp_module/src/hos_client.h
+

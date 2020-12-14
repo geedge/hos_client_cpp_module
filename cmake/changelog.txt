@@ -1,0 +1,295 @@
+* Tue Nov 3  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 6259b938ec05c538ef16e47257210f4ffa0d4e10
+  - commit:
+  - 修改回调函数参数，在close fd时flush掉缓存内容
+
+* Mon Nov 2  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 9306b888cfd394ecbe2374093c83df71046fad77
+  - commit:
+  - 修改field_stat2
+
+* Fri Oct 23  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 6b2bcbab231a4fa61434f34c933d5f1fa21bb4d3
+  - commit:
+  - 增加hos_init_api、hos_shutdown_api 接口
+
+* Thu Oct 22  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 9cda944013861a15a510deccde7eac626b8a5292
+  - commit:
+  - 修改field_stats
+
+* Thu Oct 22  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 822ea4c65fa88792019027c629e3090ac7386cd6
+  - commit:
+  - 修改aws SDK
+
+* Tue Oct 20  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 8ba2e43c9e468dae6aaf72ae112752d0a2e267e8
+  - commit:
+  - 修改测试代码
+
+* Tue Oct 20  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: e5f5062f51ea4ea7af418e1161e3139ae9fea984
+  - commit:
+  - 支持field_stat2
+
+* Tue Oct 20  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 050a489e5560c82e078ebe71f60e154c345d6997
+  - commit:
+  - 修改aws sdk使putobjectasync返回结果
+
+* Tue Oct 20  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 1e91c5f52d6fe4940d55ee46b20b6e31f4e11546
+  - commit:
+  - 修改demo
+
+* Mon Oct 19  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 0d8eaeb1a1b35e99b33f07fe842a36942ea395f8
+  - commit:
+  - CI 增加curl 和 openssl 的安装
+
+* Mon Oct 19  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: a9bfb3dfe8504da15133735746927d2d0b21c9b0
+  - commit:
+  - 修改demo
+
+* Mon Oct 19  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: d38435396918033925629e8b02d2c2f6ba9b4b9f
+  - commit:
+  - 修改API，提供set options的方式设置参数
+
+* Mon Oct 19  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 59f8b200e433783a1d1f0c926e686a7dfcf925eb
+  - commit:
+  - 修改aws sdk 的安装包，不再更新AwsCCommon、AwsCEventStream、AwsChecksums
+
+* Mon Oct 19  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 69b6bbe644c52f9f7762f1e6b7b6ff9f1e90ede7
+  - commit:
+  - 删除多余的测试文件
+
+* Mon Oct 19  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 5dfd471e8c89096293eaca48ea9ad407a87b1339
+  - commit:
+  - 修改ci，增加zlib  -devel安装
+
+* Wed Oct 14  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 3f38cefc5ee10e0e0814a4ee4b94cfe1e0b5a34b
+  - commit:
+  - 增加 performan 测试
+
+* Fri Oct 9  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 8a35250d2127feabf66fb536838043a13a32f7d1
+  - commit:
+  - 修改sdk源码
+
+* Fri Oct 9  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: a6bc240ec0afed54d0b493ed9f2dc207f34df447
+  - commit:
+  - 优化fd的生成及记录
+
+* Fri Oct 9  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 76477b253d9cd3a1f3250965bc25de472c94ad32
+  - commit:
+  - 添加upload接口的demo
+
+* Sun Sep 27  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: 13da2f2bc68e72b854034e723f93d838e670ca53
+  - commit:
+  - 添加rpm脚本
+
+* Sun Sep 27  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: 83f4ce9c463b29988b2dbf2384b9915ef9334e56
+  - commit:
+  - update
+
+* Fri Sep 25  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: 9d2aaa9fa4868f9b28dc4571a964b4b842912bc2
+  - commit:
+  - Update .gitlab  -ci.yml
+* Thu Sep 24  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: c0fd95927eaa6fd330ad1170467817cd1c0ac38b
+  - commit:
+  - 增加 .gitlab  -ci.yml
+
+* Thu Sep 24  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: 44974a13d342b0f6a60b303f2a140e52fd07c801
+  - commit:
+  - 增加CI
+
+* Thu Sep 24  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: ac2330b82f708078747cc380e1cfb2aee4d78836
+  - commit:
+  - 增加RPM编译
+
+* Thu Sep 24  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: 6039e30be1d20e42cda67a41a98feaaf9cc13ab4
+  - commit:
+  - 修改example名称
+
+* Wed Sep 23  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: b3e7de2b213931626a3c856355d44bb112b83274
+  - commit:
+  - 线程池支持
+
+* Mon Nov 2  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 555ea75f149f9dfc7b99a068462f501df65d2eb9
+  - commit:
+  - 修改field_stat2
+
+* Fri Oct 23  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 5a041876a6e98e7b84e6dac15d9e0095e6964bce
+  - commit:
+  - 增加hos_init_api、hos_shutdown_api 接口
+
+* Thu Oct 22  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 477d7223482cc517ec548b30eb022e3bd0383811
+  - commit:
+  - 修改field_stats
+
+* Thu Oct 22  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 47581b1f947e5d56734d07462c24154f3b0ffd23
+  - commit:
+  - 修改aws SDK
+
+* Tue Oct 20  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 1e62d3640458054ef66d565a120af63c6e94be6a
+  - commit:
+  - 修改测试代码
+
+* Tue Oct 20  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 8814b4dc54a1d723d5b22179a70300be8c978d38
+  - commit:
+  - 支持field_stat2
+
+* Tue Oct 20  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: f6f98573a93fb9142b2efcf1fd31f872704f7483
+  - commit:
+  - 修改aws sdk使putobjectasync返回结果
+
+* Tue Oct 20  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: afce85b9f0bbb1f2f364d86150a334e66e474385
+  - commit:
+  - 修改demo
+
+* Mon Oct 19  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: edefc6665e06f7459bc5f2dbb6567c851ae38d68
+  - commit:
+  - CI 增加curl 和 openssl 的安装
+
+* Mon Oct 19  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: f472f4029c649a85231587e521f1f567ebd44961
+  - commit:
+  - 修改demo
+
+* Mon Oct 19  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 44261c1bb8aacaf657eec2cbc3e3039be1c5cc73
+  - commit:
+  - 修改API，提供set options的方式设置参数
+
+* Mon Oct 19  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 4a1b5cc188316c40a4d81893a7ec7344c4d45f9d
+  - commit:
+  - 修改aws sdk 的安装包，不再更新AwsCCommon、AwsCEventStream、AwsChecksums
+
+* Mon Oct 19  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 9a3bdbea9c550f566f6e99b51a415070dbe8c00b
+  - commit:
+  - 删除多余的测试文件
+
+* Mon Oct 19  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 10be1a09fd9963619f9d5a394c13a42691d08c89
+  - commit:
+  - 修改ci，增加zlib  -devel安装
+
+* Wed Oct 14  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 9fc75caa33db4dc51d53449f4ebc4ee1061dd522
+  - commit:
+  - 增加 performan 测试
+
+* Fri Oct 9  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: 49efee10dca158af341c1d547d6a9cc72d37f5c5
+  - commit:
+  - 修改sdk源码
+
+* Fri Oct 9  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: aa6dc7a728ed316fb5558a97fa2047cab67d300e
+  - commit:
+  - 优化fd的生成及记录
+
+* Fri Oct 9  2020 pengxuanzheng pengxanzheng@geedgenetworks.com 
+  - hash: c537d85aec2f2e0fca9e3e829a0e0d379ba6211a
+  - commit:
+  - 添加upload接口的demo
+
+* Sun Sep 27  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: 0e48ab43ef5c3519808550514f1b8dde23b68dd1
+  - commit:
+  - 添加rpm脚本
+
+* Sun Sep 27  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: bfcb11eebf421d537564bd68b5c391fa1cd4c199
+  - commit:
+  - update
+
+* Fri Sep 25  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: 3f553606891d4a497d59f13584762d3e65619b4b
+  - commit:
+  - Update .gitlab  -ci.yml
+* Thu Sep 24  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: 5a5fb2dd26c4fc8c0245d5e5456b0b38332e6e26
+  - commit:
+  - 增加 .gitlab  -ci.yml
+
+* Thu Sep 24  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: e2965c46c9c3feeee6af16eb33f003c22ff57b0b
+  - commit:
+  - 增加CI
+
+* Thu Sep 24  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: ae00c1a891d77e9e2d1da62f3a621158bbd1af0a
+  - commit:
+  - 增加RPM编译
+
+* Thu Sep 24  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: caa5fe48df0896638ee1afc4c8252053d8ba03fb
+  - commit:
+  - 修改example名称
+
+* Wed Sep 23  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: f439b8a9ab926d87f3a3ae03d5061d3962a35ca5
+  - commit:
+  - 线程池支持
+
+* Tue Sep 22  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: 10e17cb043eb408b726aa51c51c092674e5db4a1
+  - commit:
+  - Develop 09.22
+
+* Tue Sep 22  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: 97bd7ffb2ef28a36089a5e8ba4ab5559dd661004
+  - commit:
+  - 修改cmakelist
+
+* Tue Sep 22  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: 812b8a0eb9f4e7cbadaaa1ccfa98309a14a72db5
+  - commit:
+  - 修改buffer模式下的数据输入
+
+* Mon Sep 21  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: eb41917cb28d1ec887e3502ed30324f88a183bcc
+  - commit:
+  - 修改并增加新接口
+
+* Mon Sep 14  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: a00d892928a9ca350e4388e09323fa799bd8fded
+  - commit:
+  - 1.修复SSL connect error 问题
+  - 2.修复hos_create_bucket时，出现bucekt already exits的问题
+  - 3.修复upload时，远端地址无法解析的问题
+
+* Fri Sep 11  2020 pengxuanzheng pengxuanzheng@geedgenetworks.com 
+  - hash: cd0649bfbcadaeca8d7e37b31d3e9a191160ce04
+  - commit:
+  - init
+

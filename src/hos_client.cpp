@@ -61,6 +61,7 @@ typedef struct hos_client_handle_s
     Aws::Vector<Aws::S3::Model::Bucket> buckets;
     pthread_t fd_thread;
     int fd_thread_status;
+    int count;  /* 记录了有多少个对象在使用hos */
     /* options */
     size_t cache_size;
     size_t cache_count;
@@ -190,6 +191,7 @@ hos_client_handle hos_client_create(const char *serverip, size_t port, const cha
 
     if (hos_handle)
     {
+        hos_handle->count++;
         return hos_handle;
     }
 
@@ -222,6 +224,7 @@ hos_client_handle hos_client_create(const char *serverip, size_t port, const cha
     hos_handle->cache_count = 0;
     hos_handle->thread_sum = 1;
     hos_handle->timeout = 1000;
+    hos_handle->count++;
 
     fd_info[0][0] = 65533;
     fd_info[0][1] = 0;
@@ -328,6 +331,8 @@ void hos_expand_fs2(hos_client_handle handle, const char * path, int format, cha
     char buff[128];
     int i = 0;
 
+    if (handle->fs2_info[0].fs2_handle)
+        return;
     //fs2 init
     for (i = 0; i < 3; i++)
     {
@@ -888,6 +893,11 @@ int hos_client_destory(hos_client_handle handle)
     if (handle == NULL)
     {
         return HOS_PARAMETER_ERROR;
+    }
+
+    if (--handle->count)
+    {
+        return HOS_CLIENT_OK;
     }
 
     delete handle->S3Client;

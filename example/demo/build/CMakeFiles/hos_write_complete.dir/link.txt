@@ -1,0 +1,1 @@
+/usr/bin/c++  -g   CMakeFiles/hos_write_complete.dir/hos_write_complete.cpp.o  -o hos_write_complete  -lhos-client-cpp 

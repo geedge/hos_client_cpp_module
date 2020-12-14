@@ -1,0 +1,1 @@
+/usr/bin/c++   -Wall -g   CMakeFiles/HosClientPerformance.dir/HosClientPerformance.cpp.o  -o HosClientPerformance  -lhos-client-cpp -lpthread -lhos-client-cpp -lpthread 

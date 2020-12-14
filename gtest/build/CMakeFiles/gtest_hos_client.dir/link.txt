@@ -1,0 +1,1 @@
+/usr/bin/c++    -rdynamic CMakeFiles/gtest_hos_client.dir/gtest_hos_client_create.cpp.o CMakeFiles/gtest_hos_client.dir/gtest_hos_create_bucket.cpp.o CMakeFiles/gtest_hos_client.dir/gtest_hos_verify_bucket.cpp.o  -o gtest_hos_client  -lhos-client-cpp -lgtest -lgtest_main -lpthread -lhos-client-cpp -lgtest -lgtest_main -lpthread 

@@ -1,0 +1,1 @@
+/usr/bin/c++  -g   CMakeFiles/hos_upload_complete.dir/hos_upload_complete.cpp.o  -o hos_upload_complete  -lhos-client-cpp 

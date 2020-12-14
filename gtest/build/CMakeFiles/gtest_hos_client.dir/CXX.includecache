@@ -1,0 +1,26 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/pxz/project/hos_client_cpp_module/gtest/gtest_hos_client_create.cpp
+gtest/gtest.h
+-
+hos_client.h
+/home/pxz/project/hos_client_cpp_module/gtest/hos_client.h
+
+/home/pxz/project/hos_client_cpp_module/gtest/gtest_hos_create_bucket.cpp
+gtest/gtest.h
+-
+hos_client.h
+/home/pxz/project/hos_client_cpp_module/gtest/hos_client.h
+
+/home/pxz/project/hos_client_cpp_module/gtest/gtest_hos_verify_bucket.cpp
+gtest/gtest.h
+-
+hos_client.h
+/home/pxz/project/hos_client_cpp_module/gtest/hos_client.h
+
