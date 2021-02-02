@@ -10,7 +10,7 @@ link_directories(/usr/local/lib64)
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 link_directories(${CMAKE_INSTALL_PREFIX}/lib64)
 set(CMKAE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -shared -fPIC")
-#link_libraries(libaws-c-common.so libaws-checksums.so libaws-c-event-stream.so libaws-cpp-sdk-core.so libaws-cpp-sdk-s3.so libMESA_field_stat2.so libcurl.so)
+link_libraries(libaws-c-common.so libaws-checksums.so libaws-c-event-stream.so libaws-cpp-sdk-core.so libaws-cpp-sdk-s3.so libMESA_field_stat2.so libcurl.so)
 
 add_library(${lib_name}_shared SHARED hos_client.cpp hos_hash.cpp)
 #target_link_libraries(${lib_name}_shared libaws-c-common.so libaws-checksums.so libaws-c-event-stream.so libaws-cpp-sdk-core.so libaws-cpp-sdk-s3.so libMESA_field_stat2.so libcurl.so)
