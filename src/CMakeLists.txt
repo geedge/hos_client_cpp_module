@@ -1,21 +1,16 @@
 cmake_minimum_required(VERSION 3.5)
 
-#SET(lib_name hos_client_cpp)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -shared -fPIC -std=c++11")
 SET(CMAKE_BUILD_TYPE Debug)
 
 include_directories(${CMAKE_INSTALL_PREFIX}/include/MESA)
-#link_directories(${SUPPORT_INSTALL_PREFIX})
+include_directories(/usr/local/include)
 link_directories(/usr/local/lib64)
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
-link_directories(${CMAKE_INSTALL_PREFIX}/lib64)
 set(CMKAE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -shared -fPIC")
-link_libraries(libaws-c-common.so libaws-checksums.so libaws-c-event-stream.so libaws-cpp-sdk-core.so libaws-cpp-sdk-s3.so libMESA_field_stat2.so libcurl.so)
 
 add_library(${lib_name}_shared SHARED hos_client.cpp hos_hash.cpp)
-#target_link_libraries(${lib_name}_shared libaws-c-common.so libaws-checksums.so libaws-c-event-stream.so libaws-cpp-sdk-core.so libaws-cpp-sdk-s3.so libMESA_field_stat2.so libcurl.so)
-target_link_libraries(${lib_name}_shared libMESA_field_stat2.so libcurl.so)
-#target_link_libraries(${lib_name}_shared libMESA_field_stat2.so libcurl.so)
+target_link_libraries(${lib_name}_shared libaws-cpp-sdk-core.so libaws-cpp-sdk-s3.so libMESA_field_stat2.so libcurl.so libpthread.so)
 set_target_properties(${lib_name}_shared PROPERTIES OUTPUT_NAME ${lib_name})
 
 #for ASAN
@@ -35,8 +30,5 @@ elseif(ASAN_OPTION MATCHES "THREAD")
 	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lasan")
 endif()
 # end of for ASAN
-
-#add_dependencies(${lib_name}_shared aws-sdk-cpp-master-static)
-#install(TARGETS ${lib_name}_shared LIBRARY DESTINATION /opt/MESA/lib)
 
 install(TARGETS ${lib_name}_shared LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib COMPONENT LIBRARIES)
