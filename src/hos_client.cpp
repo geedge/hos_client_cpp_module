@@ -628,7 +628,7 @@ static void *hos_fd_manage(void *ptr)
                 }
             }
         }
-        usleep(1000);
+        usleep(500000);
     }
     pthread_exit(NULL);
 }
