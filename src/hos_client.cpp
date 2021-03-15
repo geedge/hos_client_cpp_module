@@ -156,6 +156,10 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
 
 void hos_set_cache_size(hos_client_handle client,  size_t cache_size)
 {
+    if (client == NULL)
+    {
+        return;
+    }
     client->cache_size = cache_size;
     hos_cache = (size_t *)calloc(client->thread_sum, sizeof(size_t));
     return ;
@@ -163,12 +167,20 @@ void hos_set_cache_size(hos_client_handle client,  size_t cache_size)
 
 void hos_set_cache_count(hos_client_handle client, size_t cache_count)
 {
+    if (client == NULL)
+    {
+        return;
+    }
     client->cache_count = cache_count;
     return ;
 }
 
 void hos_set_thread_sum(hos_client_handle client, size_t thread_sum)
 {
+    if (client == NULL)
+    {
+        return;
+    }
     client->thread_sum = thread_sum;
     for (size_t i = 0; i < thread_sum; i++)
     {
