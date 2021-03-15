@@ -57,7 +57,6 @@ typedef struct fs2_info_s
 typedef struct hos_client_handle_s
 {
     Aws::S3::S3Client *S3Client;
-    Aws::SDKOptions options;
     Aws::Vector<Aws::S3::Model::Bucket> buckets;
     pthread_t fd_thread;
     int fd_thread_status;
@@ -75,11 +74,11 @@ typedef struct hos_client_handle_s
 #define HOS_FS2_STOP  2
 }hos_client_handle_t;
 
-hos_client_handle hos_handle;//一个进程只允许有一个hos_handle
+hos_client_handle g_hos_handle;//一个进程只允许有一个g_hos_handle
 hos_info_t *hash_hos_info[MAX_HOS_CLIENT_THREAD_NUM];
 size_t *hos_cache;//记录当前hos缓存了多少数据
 size_t fd_info[MAX_HOS_CLIENT_THREAD_NUM][MAX_HOS_CLIENT_FD_NUM + 1]; //fd 实际从3开始， fd[thread_id][0]记录register的fd，fd[thread_id][1]记录inject的fd
-Aws::SDKOptions options;
+Aws::SDKOptions g_options;
 
 static inline size_t get_current_ms()
 {
@@ -189,15 +188,15 @@ hos_client_handle hos_client_create(const char *serverip, size_t port, const cha
         return NULL;
     }
 
-    if (hos_handle)
+    if (g_hos_handle)
     {
-        hos_handle->count++;
-        return hos_handle;
+        g_hos_handle->count++;
+        return g_hos_handle;
     }
 
-    Aws::InitAPI(options);
-    hos_handle = (hos_client_handle)malloc(sizeof(hos_client_handle_t));
-    memset(hos_handle, 0, sizeof(hos_client_handle_t));
+    Aws::InitAPI(g_options);
+    g_hos_handle = (hos_client_handle)malloc(sizeof(hos_client_handle_t));
+    memset(g_hos_handle, 0, sizeof(hos_client_handle_t));
     Aws::Client::ClientConfiguration config;
     Aws::Auth::AWSCredentials credentials(accesskeyid, secretkey);
 
@@ -209,28 +208,29 @@ hos_client_handle hos_client_create(const char *serverip, size_t port, const cha
     config.enableEndpointDiscovery = true;
     config.executor = std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor>(std::make_shared<Aws::Utils::Threading::PooledThreadExecutor>(pool_size, Aws::Utils::Threading::OverflowPolicy::REJECT_IMMEDIATELY));//支持线程池
 
-    hos_handle->S3Client = new Aws::S3::S3Client(credentials, config, Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
-    hos_handle->options = options;
+    g_hos_handle->S3Client = new Aws::S3::S3Client(credentials, config, Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
     /* 获取当前用户的所有的buckets */
-    Aws::S3::Model::ListBucketsOutcome outcome = hos_handle->S3Client->ListBuckets();
+    Aws::S3::Model::ListBucketsOutcome outcome = g_hos_handle->S3Client->ListBuckets();
 
     if (!outcome.IsSuccess())
     {
+        delete g_hos_handle->S3Client;
+        Aws::ShutdownAPI(g_options);
         return NULL;
     }
 
-    hos_handle->buckets = outcome.GetResult().GetBuckets();
-    hos_handle->cache_size = 0;
-    hos_handle->cache_count = 0;
-    hos_handle->thread_sum = 1;
-    hos_handle->timeout = 1000;
-    hos_handle->count++;
+    g_hos_handle->buckets = outcome.GetResult().GetBuckets();
+    g_hos_handle->cache_size = 0;
+    g_hos_handle->cache_count = 0;
+    g_hos_handle->thread_sum = 1;
+    g_hos_handle->timeout = 1000;
+    g_hos_handle->count++;
 
     fd_info[0][0] = 65533;
     fd_info[0][1] = 0;
     fd_info[0][2] = 0;
 
-    return hos_handle;
+    return g_hos_handle;
 }
 
 static void *fs2_statistics(void *ptr)
@@ -959,7 +959,7 @@ int hos_client_destory(hos_client_handle handle)
     }
     free(handle);
 
-    Aws::ShutdownAPI(options);
+    Aws::ShutdownAPI(g_options);
 
     return HOS_CLIENT_OK;
 }
