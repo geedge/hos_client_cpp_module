@@ -8,7 +8,8 @@ include(Version)
 
 set(CMAKE_MACOSX_RPATH 0)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -fno-rtti")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -fno-rtti")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall ")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xlinker --unresolved-symbols=ignore-in-shared-libs")
 
 set(CMAKE_INSTALL_PREFIX /opt/MESA)

@@ -58,16 +58,21 @@ typedef struct hos_client_handle_s
 {
     Aws::S3::S3Client *S3Client;
     Aws::Vector<Aws::S3::Model::Bucket> buckets;
+    std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor> executor;
     pthread_t fd_thread;
     int fd_thread_status;
     int count;  /* 记录了有多少个对象在使用hos */
+    size_t pool_thread_size;
     /* options */
     size_t cache_size;
     size_t cache_count;
     size_t thread_sum;
     size_t timeout;
     /* expand */
-    fs2_info_t fs2_info[3]; //0: data info; 1: fd info; 2 cache info
+#ifndef FS2_RECORD_EVENTS
+#define FS2_RECORD_EVENTS 4
+#endif
+    fs2_info_t fs2_info[FS2_RECORD_EVENTS]; //0: data info; 1: fd info; 2 cache info; 3 PoolThread state
     pthread_t fs2_thread;
     int fs2_status;
 #define HOS_FS2_START 1
@@ -237,6 +242,8 @@ hos_client_handle hos_client_create(const char *serverip, size_t port, const cha
     g_hos_handle->thread_sum = 1;
     g_hos_handle->timeout = 1000;
     g_hos_handle->count++;
+    g_hos_handle->pool_thread_size = pool_size;
+    g_hos_handle->executor = std::dynamic_pointer_cast<Aws::Utils::Threading::PooledThreadExecutor>(config.executor);
 
     fd_info[0][0] = 65533;
     fd_info[0][1] = 0;
@@ -258,7 +265,14 @@ static void *fs2_statistics(void *ptr)
     int tx_pkts_sum_interval = 0;
     int tx_bytes_sum_interval = 0;
     fs2_info_t *fs2_info = NULL; 
+    int PoolThread_state[4] = {0, 0, 0, 0};//{PoolSize, Busy, TopBusy, AveBusy}
+    int *busy = &PoolThread_state[1];
+    int *top_busy = &PoolThread_state[2];
+    int *ave_busy = &PoolThread_state[3];
+    int pool_history_sum = 0;
+    size_t time = 0;
 
+    PoolThread_state[0] = g_hos_handle->pool_thread_size;
     while(1)
     {
         if (handle->fs2_status == HOS_FS2_STOP)
@@ -274,6 +288,12 @@ static void *fs2_statistics(void *ptr)
         rx_bytes_sum_interval = 0;
         tx_pkts_sum_interval = 0;
         tx_bytes_sum_interval = 0;
+
+        *busy = g_hos_handle->executor->GetTaskSize();
+        *top_busy = (*busy) > (*top_busy) ? (*busy) : (*top_busy);
+        pool_history_sum += *busy;
+        time++;
+        *ave_busy = pool_history_sum / time;
 
         //pkts and bytes info
         fs2_info = &handle->fs2_info[0];
@@ -329,6 +349,14 @@ static void *fs2_statistics(void *ptr)
         {
             FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[i], fs2_info->column_ids[0], FS_OP_SET, hos_cache[i]);
         }
+
+        //PoolThread State
+        fs2_info = &handle->fs2_info[3];
+        for (i = 0; i < 4; i++)
+        {
+            FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[0], fs2_info->column_ids[i], FS_OP_SET, PoolThread_state[i]);
+        }
+        
         sleep(1);
     }
     pthread_exit(NULL);
@@ -346,7 +374,7 @@ void hos_expand_fs2(hos_client_handle handle, const char * path, int format, cha
     if (handle->fs2_info[0].fs2_handle)
         return;
     //fs2 init
-    for (i = 0; i < 3; i++)
+    for (i = 0; i < FS2_RECORD_EVENTS; i++)
     {
         fs2_handle = &handle->fs2_info[i].fs2_handle;
         *fs2_handle = FS_create_handle();
@@ -458,6 +486,27 @@ void hos_expand_fs2(hos_client_handle handle, const char * path, int format, cha
     }
     snprintf(buff, sizeof(buff), "total");
     fs2_info->line_ids[i] = FS_register(*fs2_handle, FS_STYLE_LINE, FS_CALC_CURRENT, buff);
+    FS_start(*fs2_handle);
+
+    //PoolThread state
+    /*******************************************************
+     *              PoolSize    Busy    TopBusy     AveBusy
+     * ThreadNum    1000        500     800         650
+    ********************************************************/
+    fs2_info = &handle->fs2_info[3];
+    fs2_handle = &handle->fs2_info[3].fs2_handle;
+    fs2_info->line_ids = (int *)calloc(4, sizeof(int));
+    fs2_info->column_ids = (int *)calloc(1, sizeof(int));
+
+    const char *poolthread_col[4] = {"PoolSize", "Busy", "TopBusy", "AveBusy"};
+    for (i = 0; i < 4; i++)
+    {
+        snprintf(buff, sizeof(buff), poolthread_col[i]);
+        fs2_info->column_ids[i] = FS_register(*fs2_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT, buff);
+    }
+    snprintf(buff, sizeof(buff), "ThreadNum");
+    fs2_info->line_ids[0] = FS_register(*fs2_handle, FS_STYLE_LINE, FS_CALC_CURRENT, buff);
+
     FS_start(*fs2_handle);
 
     pthread_create(&handle->fs2_thread, NULL, fs2_statistics, handle);
