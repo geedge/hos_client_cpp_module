@@ -961,8 +961,6 @@ int hos_client_destory(hos_client_handle handle)
         return HOS_CLIENT_OK;
     }
 
-    delete handle->S3Client;
-
     Aws::Vector<Aws::S3::Model::Bucket>().swap(handle->buckets);
 
     if (handle->fd_thread)
@@ -1008,6 +1006,8 @@ int hos_client_destory(hos_client_handle handle)
                 free(handle->fs2_info[i].column_ids);
         }
     }
+
+    delete handle->S3Client;
 
     if (hos_cache)
     {
