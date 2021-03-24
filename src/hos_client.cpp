@@ -166,7 +166,6 @@ void hos_set_cache_size(hos_client_handle client,  size_t cache_size)
         return;
     }
     client->cache_size = cache_size;
-    hos_cache = (size_t *)calloc(client->thread_sum, sizeof(size_t));
     return ;
 }
 
@@ -244,6 +243,8 @@ hos_client_handle hos_client_create(const char *serverip, size_t port, const cha
     g_hos_handle->count++;
     g_hos_handle->pool_thread_size = pool_size;
     g_hos_handle->executor = std::dynamic_pointer_cast<Aws::Utils::Threading::PooledThreadExecutor>(config.executor);
+
+    hos_cache = (size_t *)calloc(g_hos_handle->thread_sum, sizeof(size_t));
 
     fd_info[0][0] = 65533;
     fd_info[0][1] = 0;
@@ -495,17 +496,15 @@ void hos_expand_fs2(hos_client_handle handle, const char * path, int format, cha
     ********************************************************/
     fs2_info = &handle->fs2_info[3];
     fs2_handle = &handle->fs2_info[3].fs2_handle;
-    fs2_info->line_ids = (int *)calloc(4, sizeof(int));
-    fs2_info->column_ids = (int *)calloc(1, sizeof(int));
+    fs2_info->line_ids = (int *)calloc(1, sizeof(int));
+    fs2_info->column_ids = (int *)calloc(4, sizeof(int));
 
     const char *poolthread_col[4] = {"PoolSize", "Busy", "TopBusy", "AveBusy"};
     for (i = 0; i < 4; i++)
     {
-        snprintf(buff, sizeof(buff), poolthread_col[i]);
-        fs2_info->column_ids[i] = FS_register(*fs2_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT, buff);
+        fs2_info->column_ids[i] = FS_register(*fs2_handle, FS_STYLE_COLUMN, FS_CALC_CURRENT, poolthread_col[i]);
     }
-    snprintf(buff, sizeof(buff), "ThreadNum");
-    fs2_info->line_ids[0] = FS_register(*fs2_handle, FS_STYLE_LINE, FS_CALC_CURRENT, buff);
+    fs2_info->line_ids[0] = FS_register(*fs2_handle, FS_STYLE_LINE, FS_CALC_CURRENT, "ThreadNum");
 
     FS_start(*fs2_handle);
 
@@ -972,7 +971,7 @@ int hos_client_destory(hos_client_handle handle)
     {
         handle->fs2_status = HOS_FS2_STOP;
         pthread_join(handle->fs2_thread, NULL);
-        for (i = 0; i < 3; i++)
+        for (i = 0; i < FS2_RECORD_EVENTS; i++)
         {
             screen_stat_handle_t *fs2_handle = &handle->fs2_info[i].fs2_handle;
             FS_stop(fs2_handle);
