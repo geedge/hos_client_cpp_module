@@ -232,6 +232,8 @@ hos_client_handle hos_client_create(const char *serverip, size_t port, const cha
     {
         delete g_hos_handle->S3Client;
         Aws::ShutdownAPI(g_options);
+        free(g_hos_handle);
+        g_hos_handle = NULL;
         return NULL;
     }
 
