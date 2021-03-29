@@ -84,6 +84,18 @@ hos_info_t *hash_hos_info[MAX_HOS_CLIENT_THREAD_NUM];
 size_t *hos_cache;//记录当前hos缓存了多少数据
 size_t fd_info[MAX_HOS_CLIENT_THREAD_NUM][MAX_HOS_CLIENT_FD_NUM + 1]; //fd 实际从3开始， fd[thread_id][0]记录register的fd，fd[thread_id][1]记录inject的fd
 Aws::SDKOptions g_options;
+static char g_hos_error_msg[1024];
+static size_t g_hos_error_num;
+
+char *hos_get_error_msg()
+{
+    return g_hos_error_msg;
+}
+
+size_t hos_get_error_num()
+{
+    return g_hos_error_num;
+}
 
 static inline size_t get_current_ms()
 {
@@ -201,6 +213,9 @@ hos_client_handle hos_client_create(const char *serverip, size_t port, const cha
 {
     if (!serverip || !accesskeyid || !secretkey)
     {
+        g_hos_error_num = HOS_PARAMETER_ERROR;
+        snprintf(g_hos_error_msg, sizeof(g_hos_error_msg) - 1, "Error: Parameter is null. serverip:%s,port:%lu, accesskeyid:%s, secretkey:%s, pool_size:%lu\n",
+            serverip, port, accesskeyid, secretkey, pool_size);
         return NULL;
     }
 
@@ -234,6 +249,8 @@ hos_client_handle hos_client_create(const char *serverip, size_t port, const cha
         Aws::ShutdownAPI(g_options);
         free(g_hos_handle);
         g_hos_handle = NULL;
+        g_hos_error_num = (size_t)outcome.GetError().GetErrorType() + 1;
+        snprintf(g_hos_error_msg, sizeof(g_hos_error_msg) - 1, outcome.GetError().GetMessage().c_str());
         return NULL;
     }
 

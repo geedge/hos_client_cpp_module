@@ -76,15 +76,25 @@ enum s3errors
 typedef void (*put_finished_callback)(bool, const char *, const char *, const char *, void *);
 
 /*************************************************************************************
- * 函数名： hos_client_init
+ * 函数名： hos_client_handle
  * 参数：   const char *serverip        目的地址，如"192.168.44.12"
  *          size_t port                 端口号
  *          const char *accesskeyid     AWS access key ID，如”default“
  *          const char *secretkey       AWS secret key，如”default“
  *          size_t thread_sum           线程总数
- * 返回值： 成功返回一个非空句柄，失败返回NULL。（失败原因都是因为输入参数不合法）
+ * 返回值： 成功返回一个非空句柄，失败返回NULL。
 *************************************************************************************/
 hos_client_handle hos_client_create(const char *serverip, size_t port, const char *accesskeyid, const char *secretkey, size_t pool_size);
+/*************************************************************************************
+ * 函数名： hos_get_error_msg
+ * 返回值： hos_client_create创建失败的原因
+*************************************************************************************/
+char *hos_get_error_msg();
+/*************************************************************************************
+ * 函数名： hos_get_error_num
+ * 返回值： hos_client_create创建失败的错误码
+*************************************************************************************/
+size_t hos_get_error_num();
 /*************************************************************************************
  * 函数名： hos_create_bucket
  * 参数：   hos_client_handle handle    非空句柄
