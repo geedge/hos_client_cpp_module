@@ -8,7 +8,7 @@
 void add_hos_info(hos_info_t **handle, hos_info_t *input)
 {
     hos_info_t *value = NULL;
-    HASH_FIND_INT(*handle, &input->fd, value);
+    HASH_FIND_INT(*handle, (int *)&input->fd, value);
     if (value == NULL)
     {
         value = (hos_info_t *)malloc(sizeof(hos_info_t));

@@ -80,9 +80,10 @@ typedef struct hos_client_handle_s
 }hos_client_handle_t;
 
 hos_client_handle g_hos_handle;//一个进程只允许有一个g_hos_handle
-hos_info_t *hash_hos_info[MAX_HOS_CLIENT_THREAD_NUM];
+//hos_info_t *hash_hos_info[MAX_HOS_CLIENT_THREAD_NUM];
+hos_info_t *hash_hos_info;
 size_t *hos_cache;//记录当前hos缓存了多少数据
-size_t fd_info[MAX_HOS_CLIENT_THREAD_NUM][MAX_HOS_CLIENT_FD_NUM + 1]; //fd 实际从3开始， fd[thread_id][0]记录register的fd，fd[thread_id][1]记录inject的fd
+size_t (*fd_info)[MAX_HOS_CLIENT_FD_NUM + 1]; //fd 实际从3开始， fd[thread_id][0]记录register的fd，fd[thread_id][1]记录inject的fd
 Aws::SDKOptions g_options;
 static char g_hos_error_msg[1024];
 static size_t g_hos_error_num;
@@ -206,6 +207,10 @@ void hos_set_thread_sum(hos_client_handle client, size_t thread_sum)
     {
         hos_cache = (size_t *)realloc(hos_cache, thread_sum * sizeof(size_t));
     }
+    if (hash_hos_info)
+    {
+        hash_hos_info = (hos_info_t *)realloc(hash_hos_info, thread_sum * sizeof(hos_info_t));
+    }
     return ;
 }
 
@@ -264,6 +269,7 @@ hos_client_handle hos_client_create(const char *serverip, size_t port, const cha
     g_hos_handle->executor = std::dynamic_pointer_cast<Aws::Utils::Threading::PooledThreadExecutor>(config.executor);
 
     hos_cache = (size_t *)calloc(g_hos_handle->thread_sum, sizeof(size_t));
+    hash_hos_info = (hos_info_t *)calloc(1, sizeof(hos_info_t));
 
     fd_info[0][0] = 65533;
     fd_info[0][1] = 0;
