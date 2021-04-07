@@ -79,6 +79,7 @@ typedef struct hos_client_handle_s
 #define HOS_FS2_STOP  2
 }hos_client_handle_t;
 
+std::mutex m_client_lock; /* create和destroy操作时使用的锁 */
 hos_client_handle g_hos_handle;//一个进程只允许有一个g_hos_handle
 //hos_info_t *hash_hos_info[MAX_HOS_CLIENT_THREAD_NUM];
 hos_info_t **hash_hos_info;
@@ -231,6 +232,7 @@ void hos_set_thread_sum(hos_client_handle client, size_t thread_sum)
 
 hos_client_handle hos_client_create(const char *serverip, size_t port, const char *accesskeyid, const char *secretkey, size_t pool_size)
 {
+    std::lock_guard<std::mutex> locker(m_client_lock);
     if (!serverip || !accesskeyid || !secretkey)
     {
         g_hos_error_num = HOS_PARAMETER_ERROR;
@@ -990,6 +992,7 @@ int hos_close_fd(size_t fd, size_t thread_id)
 
 int hos_client_destory(hos_client_handle handle)
 {
+    std::lock_guard<std::mutex> locker(m_client_lock);
     size_t i = 0;
     if (handle == NULL)
     {
