@@ -81,7 +81,7 @@ typedef struct hos_client_handle_s
 
 hos_client_handle g_hos_handle;//一个进程只允许有一个g_hos_handle
 //hos_info_t *hash_hos_info[MAX_HOS_CLIENT_THREAD_NUM];
-hos_info_t *hash_hos_info;
+hos_info_t **hash_hos_info;
 size_t *hos_cache;//记录当前hos缓存了多少数据
 size_t (*fd_info)[MAX_HOS_CLIENT_FD_NUM + 1]; //fd 实际从3开始， fd[thread_id][0]记录register的fd，fd[thread_id][1]记录inject的fd
 Aws::SDKOptions g_options;
@@ -198,6 +198,11 @@ void hos_set_thread_sum(hos_client_handle client, size_t thread_sum)
     {
         return;
     }
+    if (client->thread_sum >= thread_sum )
+    {
+        return;
+    }
+
     client->thread_sum = thread_sum;
     for (size_t i = 0; i < thread_sum; i++)
     {
@@ -209,7 +214,17 @@ void hos_set_thread_sum(hos_client_handle client, size_t thread_sum)
     }
     if (hash_hos_info)
     {
-        hash_hos_info = (hos_info_t *)realloc(hash_hos_info, thread_sum * sizeof(hos_info_t));
+        hash_hos_info = (hos_info_t **)realloc(hash_hos_info, thread_sum * sizeof(hos_info_t*));
+    }else
+    {
+        hash_hos_info = (hos_info_t **)calloc(thread_sum, sizeof(hos_info_t*));
+    }
+    if (fd_info)
+    {
+        fd_info = (size_t (*) [MAX_HOS_CLIENT_FD_NUM + 1])realloc(fd_info, thread_sum * sizeof(size_t [MAX_HOS_CLIENT_FD_NUM + 1]));
+    }else
+    {
+        fd_info = (size_t (*) [MAX_HOS_CLIENT_FD_NUM + 1])calloc(thread_sum, sizeof(size_t [MAX_HOS_CLIENT_FD_NUM + 1]));
     }
     return ;
 }
@@ -269,7 +284,8 @@ hos_client_handle hos_client_create(const char *serverip, size_t port, const cha
     g_hos_handle->executor = std::dynamic_pointer_cast<Aws::Utils::Threading::PooledThreadExecutor>(config.executor);
 
     hos_cache = (size_t *)calloc(g_hos_handle->thread_sum, sizeof(size_t));
-    hash_hos_info = (hos_info_t *)calloc(1, sizeof(hos_info_t));
+    hash_hos_info = (hos_info_t **)calloc(1, sizeof(hos_info_t *));
+    fd_info = (size_t (*)[MAX_HOS_CLIENT_FD_NUM + 1])calloc(1, sizeof(size_t [MAX_HOS_CLIENT_FD_NUM + 1]));
 
     fd_info[0][0] = 65533;
     fd_info[0][1] = 0;
@@ -754,7 +770,7 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
     int ret = 0;
     data_info_t *data_info = NULL;
 
-    if ((fd == 0) || (stream == NULL) || (thread_id > MAX_HOS_CLIENT_THREAD_NUM))
+    if ((fd == 0) || (stream == NULL) || (thread_id > g_hos_handle->thread_sum))
     {
         return HOS_PARAMETER_ERROR;
     }
@@ -1038,10 +1054,21 @@ int hos_client_destory(hos_client_handle handle)
         free(hos_cache);
     }
 
+    if (fd_info)
+    {
+        free(fd_info);
+    }
+
     for (i = 0; i < handle->thread_sum; i++)
     {
         delete_all(&hash_hos_info[i]);
     }
+    
+    if (hash_hos_info)
+    {
+        free(hash_hos_info);
+    }
+
     free(handle);
 
     Aws::ShutdownAPI(g_options);
