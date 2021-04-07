@@ -1063,13 +1063,14 @@ int hos_client_destory(hos_client_handle handle)
     {
         delete_all(&hash_hos_info[i]);
     }
-    
+
     if (hash_hos_info)
     {
         free(hash_hos_info);
     }
 
     free(handle);
+    g_hos_handle = NULL;
 
     Aws::ShutdownAPI(g_options);
 
