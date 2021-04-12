@@ -195,7 +195,6 @@ void hos_set_cache_count(hos_client_handle client, size_t cache_count)
 
 void hos_set_thread_sum(hos_client_handle client, size_t thread_sum)
 {
-    void *tmp = NULL;
     if (client == NULL)
     {
         return;
@@ -215,12 +214,8 @@ void hos_set_thread_sum(hos_client_handle client, size_t thread_sum)
     }
     if (hash_hos_info)
     {
-        tmp = malloc(client->thread_sum * sizeof(hos_info_t *));
-        memcpy(tmp, hash_hos_info, client->thread_sum * sizeof(hos_info_t *));
         hash_hos_info = (hos_info_t **)realloc(hash_hos_info, thread_sum * sizeof(hos_info_t *));
-        memset(hash_hos_info, 0, thread_sum * sizeof(hos_info_t *));
-        memcpy(hash_hos_info, tmp, thread_sum * sizeof(hos_info_t*));
-        free(tmp);
+        memset(&hash_hos_info[client->thread_sum], 0, (thread_sum - client->thread_sum) * sizeof(hos_info_t *));
     }
     else
     {
