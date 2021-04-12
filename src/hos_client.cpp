@@ -195,6 +195,7 @@ void hos_set_cache_count(hos_client_handle client, size_t cache_count)
 
 void hos_set_thread_sum(hos_client_handle client, size_t thread_sum)
 {
+    void *tmp = NULL;
     if (client == NULL)
     {
         return;
@@ -204,7 +205,6 @@ void hos_set_thread_sum(hos_client_handle client, size_t thread_sum)
         return;
     }
 
-    client->thread_sum = thread_sum;
     for (size_t i = 0; i < thread_sum; i++)
     {
         fd_info[i][0] = 65533;
@@ -215,8 +215,14 @@ void hos_set_thread_sum(hos_client_handle client, size_t thread_sum)
     }
     if (hash_hos_info)
     {
-        hash_hos_info = (hos_info_t **)realloc(hash_hos_info, thread_sum * sizeof(hos_info_t*));
-    }else
+        tmp = malloc(client->thread_sum * sizeof(hos_info_t *));
+        memcpy(tmp, hash_hos_info, client->thread_sum * sizeof(hos_info_t *));
+        hash_hos_info = (hos_info_t **)realloc(hash_hos_info, thread_sum * sizeof(hos_info_t *));
+        memset(hash_hos_info, 0, thread_sum * sizeof(hos_info_t *));
+        memcpy(hash_hos_info, tmp, thread_sum * sizeof(hos_info_t*));
+        free(tmp);
+    }
+    else
     {
         hash_hos_info = (hos_info_t **)calloc(thread_sum, sizeof(hos_info_t*));
     }
@@ -227,6 +233,7 @@ void hos_set_thread_sum(hos_client_handle client, size_t thread_sum)
     {
         fd_info = (size_t (*) [MAX_HOS_CLIENT_FD_NUM + 1])calloc(thread_sum, sizeof(size_t [MAX_HOS_CLIENT_FD_NUM + 1]));
     }
+    client->thread_sum = thread_sum;
     return ;
 }
 
