@@ -14,6 +14,8 @@ target_link_libraries(${lib_name}_shared
     "-Wl,--whole-archive"
     libaws-cpp-sdk-core.a 
     libaws-cpp-sdk-s3.a
+    #libaws-cpp-sdk-core.so
+    #libaws-cpp-sdk-s3.so
     "-Wl,--no-whole-archive"
     libMESA_field_stat2.so
     libcurl.so
