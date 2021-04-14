@@ -1,11 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -shared -fPIC -std=c++11")
-SET(CMAKE_BUILD_TYPE Debug)
 
 include_directories(${CMAKE_INSTALL_PREFIX}/include/MESA)
-include_directories(/usr/local/include)
-link_directories(/usr/local/lib64)
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 set(CMKAE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -shared -fPIC")
 
@@ -14,8 +11,6 @@ target_link_libraries(${lib_name}_shared
     "-Wl,--whole-archive"
     libaws-cpp-sdk-core.a 
     libaws-cpp-sdk-s3.a
-    #libaws-cpp-sdk-core.so
-    #libaws-cpp-sdk-s3.so
     "-Wl,--no-whole-archive"
     libMESA_field_stat2.so
     libcurl.so
@@ -40,4 +35,5 @@ elseif(ASAN_OPTION MATCHES "THREAD")
 endif()
 # end of for ASAN
 
+add_dependencies(${lib_name}_shared aws-sdk-cpp-master-static)
 install(TARGETS ${lib_name}_shared LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib COMPONENT LIBRARIES)
