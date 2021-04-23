@@ -7,14 +7,14 @@
 #define __HOS_HASH_H__
 
 #include <aws/core/Aws.h>
-#include "hos_client.h"
+//#include "hos_client.h"
 #include "uthash.h"
 
-typedef struct hos_info_s
+typedef struct hos_fd_context_s
 {
     size_t fd;
     int  mode;
-    hos_client_handle handle; 
+    //hos_client_handle handle; 
     char *bucket;
     char *object;
     void *callback;
@@ -28,13 +28,13 @@ typedef struct hos_info_s
 #define HOS_FD_FREE 0
 #define HOS_FD_REGISTER 1
 #define HOS_FD_INJECT 2
-    size_t overtime;    //计算后超时的时间
+    size_t overtime;    //计算后的时间点，超过即inject fd
     size_t timeout;     //配置的超时时间，从status变成INJECT开始计时
     UT_hash_handle hh;
-}hos_info_t;
+}hos_fd_context_t;
 
-void add_hos_info(hos_info_t **handle, hos_info_t *input);
-hos_info_t *find_info_by_fd(hos_info_t *handle, size_t fd);
-void delete_info_by_fd(hos_info_t **handle, size_t fd);
-void delete_all(hos_info_t **handle);
+void add_fd_context(hos_fd_context_t **handle, hos_fd_context_t *input);
+hos_fd_context_t *find_context_by_fd(hos_fd_context_t *handle, size_t fd);
+void delete_context_by_fd(hos_fd_context_t **handle, size_t fd);
+void delete_all(hos_fd_context_t **handle);
 #endif

@@ -1,13 +1,18 @@
 /*************************************************************************
-    > File Name: hos_client_api.h
+    > File Name: hos_client.h
     > Author: pxz
     > Created Time: Thu 10 Sep 2020 03:13:59 PM CST
  ************************************************************************/
 #ifndef __HOS_CLIENT_INIT__
 #define __HOS_CLIENT_INIT__
 
-/*hos client 句柄*/
-typedef struct hos_client_handle_s* hos_client_handle;
+/*hos instance */
+typedef struct hos_instance_s{
+  bool result;
+  int  error_code;
+  char error_message[1024];
+  const char *hos_url_prefix;
+}* hos_instance;
 
 #define HOS_CLIENT_OK 0
 
@@ -20,10 +25,13 @@ typedef struct hos_client_handle_s* hos_client_handle;
 enum hoserrors
 {
     HOS_PARAMETER_ERROR = -1,
-    HOS_FILE_NOT_EXITS = -2,
+    HOS_FILE_NOT_EXIST = -2,
     HOS_HASH_NOT_FIND = -3,
     HOS_FD_NOT_ENOUGH = -4,
     HOS_SEND_FAILED = -5,
+    HOS_RUNTIME_LOG_FAILED = -6,
+    HOS_CONF_ERROR = -7,
+    HOS_BUCKET_NOT_EXIST = -8,
 
 };
 
@@ -75,61 +83,42 @@ enum s3errors
 
 typedef void (*put_finished_callback)(bool, const char *, const char *, const char *, void *);
 
-/*************************************************************************************
- * 函数名： hos_client_handle
+/*//FIXME 改为static，不再对外提供 
+*************************************************************************************
+ * 函数名： hos_instance
  * 参数：   const char *serverip        目的地址，如"192.168.44.12"
  *          size_t port                 端口号
- *          const char *accesskeyid     AWS access key ID，如”default“
- *          const char *secretkey       AWS secret key，如”default“
+ *          const char *accesskeyid     AWS access key ID，如"default"
+ *          const char *secretkey       AWS secret key，如"default"
+ *          siez_t pool_size            线程池大小
  *          size_t thread_sum           线程总数
- * 返回值： 成功返回一个非空句柄，失败返回NULL。
-*************************************************************************************/
-hos_client_handle hos_client_create(const char *serverip, size_t port, const char *accesskeyid, const char *secretkey, size_t pool_size);
+ * 返回值： 成功返回一个实例，失败返回NULL。
+*************************************************************************************
+hos_instance hos_client_create(const char *serverip, size_t port, const char *accesskeyid, const char *secretkey, size_t pool_size);
+*/
+
 /*************************************************************************************
- * 函数名： hos_get_error_msg
- * 返回值： hos_client_create创建失败的原因
+ * 函数名：   hos_init_instance
+ * 输入参数： conf_path 配置文件路径
+ *           thread_num 线程数    
+ * 返回值：   hos 实例创建结果
 *************************************************************************************/
-char *hos_get_error_msg();
-/*************************************************************************************
- * 函数名： hos_get_error_num
- * 返回值： hos_client_create创建失败的错误码
-*************************************************************************************/
-size_t hos_get_error_num();
-/*************************************************************************************
- * 函数名： hos_create_bucket
- * 参数：   hos_client_handle handle    非空句柄
- *          const char * bucket         桶名称
- * 返回值： int                         成功返回0，S3错误返回s3errors错误码，hos client错误返回hoserrors错误码
-*************************************************************************************/
-bool hos_verify_bucket(hos_client_handle handle, const char *bucket);
+hos_instance hos_init_instance(const char *conf_path, const char *module, size_t thread_num, const char *bucket);
 /*************************************************************************************
  * 函数名： hos_create_bucket
- * 参数：   hos_client_handle handle    非空句柄
- *          const char * bucket         桶名称
- * 返回值： int                         成功返回0，S3错误返回s3errors错误码，hos client错误返回hoserrors错误码
+ * 参数:    const char *bucket  桶名称
+ * 返回值： bool 成功返回true，失败返回false
 *************************************************************************************/
-int hos_create_bucket(hos_client_handle handle, const char *bucket);
+//bool hos_verify_bucket(const char *bucket);
 /*************************************************************************************
- * 函数名： hos_set_cache_size
- * 参数：   hos_client_handle handle    非空句柄
- *          size_t cache_size           append 模式每次追加的buffer大小   
+ * 函数名： hos_create_bucket
+ * 参数：   const char * bucket         桶名称
+ * 返回值： int  成功返回0，S3错误返回s3errors错误码，hos client错误返回hoserrors错误码
 *************************************************************************************/
-void hos_set_cache_size(hos_client_handle handle,  size_t cache_size);
+int hos_create_bucket(hos_instance instance, const char *bucket);
 /*************************************************************************************
- * 函数名： hos_set_cache_count
- * 参数：   hos_client_handle handle    非空句柄
- *          size_t cache_count           append 模式追加次数
-*************************************************************************************/
-void hos_set_cache_count(hos_client_handle handle,  size_t cache_count);
-/*************************************************************************************
- * 函数名： hos_set_thread_sum
- * 参数：   hos_client_handle handle    非空句柄
- *          size_t thread_sum           append 模式追加次数
-*************************************************************************************/
-void hos_set_thread_sum(hos_client_handle handle,  size_t thread_sum);
-/*************************************************************************************
- * 函数名： hos_upload_async
- * 参数：   hos_client_handle handle    非空句柄
+ * 函数名： hos_upload_file
+ * 参数：   hos_instance instance    非空句柄
  *          const char * bucket         桶名称
  *          const char * file_path         上传对象路径
  *          put_finished_callback callback upload操作结束时调用的回调函数
@@ -137,10 +126,10 @@ void hos_set_thread_sum(hos_client_handle handle,  size_t thread_sum);
  *          size_t thread_id            当前线程id
  * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
-int hos_upload_file(hos_client_handle handle, const char *bucket, const char *file_path, put_finished_callback callback, void* userdata, size_t thread_id);
+int hos_upload_file(hos_instance instance, const char *bucket, const char *file_path, put_finished_callback callback, void* userdata, size_t thread_id);
 /*************************************************************************************
- * 函数名： hos_upload_async
- * 参数：   hos_client_handle handle    非空句柄
+ * 函数名： hos_upload_buf
+ * 参数：   hos_instance instance    非空句柄
  *          const char * bucket         桶名称
  *          const char * object         上传对象名称
  *          const char *buf             上传的buf
@@ -150,38 +139,28 @@ int hos_upload_file(hos_client_handle handle, const char *bucket, const char *fi
  *          size_t thread_id            当前线程id
  * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
-int hos_upload_buf(hos_client_handle handle, const char *bucket, const char *object, const char *buf, size_t buf_len, put_finished_callback callback, void *userdata, size_t thread_id);
+int hos_upload_buf(hos_instance instance, const char *bucket, const char *object, const char *buf, size_t buf_len, put_finished_callback callback, void *userdata, size_t thread_id);
 /*************************************************************************************
  * 函数名： hos_open_fd
- * 参数：   hos_client_handle handle    非空句柄
- *          const char * bucket         桶名称
+ * 参数：   const char * bucket         桶名称
  *          const char * object         上传对象名称
  *          put_finished_callback callback upload操作结束时调用的回调函数
- *          void *data                  用户自定义数据
+ *          void *data                  用户回调函数自定义数据
  *          size_t thread_id            线程ID
  *          int mode                    模式 (FILE OR BUFFER, APPEND OR NOT)
- * 返回值   int                         成功返回0，失败返回hoserros错误码
+ * 返回值   int                         成功返回fd(fd >=3)，失败返回hoserros错误码
 *************************************************************************************/
-int hos_open_fd(hos_client_handle handle, const char *bucket, const char *object, put_finished_callback callback, void *userdata, size_t thread_id, int mode);
+int hos_open_fd(const char *bucket, const char *object, put_finished_callback callback, void *userdata, size_t thread_id, int mode);
 /*************************************************************************************
- * 函数名： hos_upload_stream_async
- * 参数：   hos_client_handle handle    非空句柄
+ * 函数名： hos_write
+ * 参数：   size_t fd                     hos_open_fd返回的fd
  *          const char * stream         待上传的数据
  *          size_t stream               待上传的数据长度
  *          size_t thread_id            线程ID
  *          size_t position             append模式下的每段内容编号
- * 返回值   int                         成功返回0，失败返回hoserros错误码
+ * 返回值   int                         成功返回0，失败返回hoserror
 *************************************************************************************/
 int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id);
-/*************************************************************************************
- * 函数名： hos_expand_fs2
- * 参数：   hos_client_handle handle    非空句柄
- *          const char * path           log 路径
- *          int format                  0:default; 1: Json
- *          char *server_ip             服务IP地址
- *          int port                    服务端口
-*************************************************************************************/
-void hos_expand_fs2(hos_client_handle handle, const char * path, int format, char *server_ip, int port);
 /*************************************************************************************
  * 函数名： hos_close_fd
  * 参数：   size_t fd                   fd
@@ -190,9 +169,8 @@ void hos_expand_fs2(hos_client_handle handle, const char * path, int format, cha
 *************************************************************************************/
 int hos_close_fd(size_t fd, size_t thread_id);
 /*************************************************************************************
- * 函数名： hos_client_destory
- * 参数：   hos_client_handle handle    非空句柄
+ * 函数名： hos_shutdown_instance
  * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
-int hos_client_destory(hos_client_handle handle);
+int hos_shutdown_instance();
 #endif

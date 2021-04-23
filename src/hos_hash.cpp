@@ -5,14 +5,14 @@
  ************************************************************************/
 #include "hos_hash.h"
 
-void add_hos_info(hos_info_t **handle, hos_info_t *input)
+void add_fd_context(hos_fd_context_t **handle, hos_fd_context_t *input)
 {
-    hos_info_t *value = NULL;
+    hos_fd_context_t *value = NULL;
     HASH_FIND_INT(*handle, (int *)&input->fd, value);
     if (value == NULL)
     {
-        value = (hos_info_t *)malloc(sizeof(hos_info_t));
-        memcpy(value, input, sizeof(hos_info_t));
+        value = (hos_fd_context_t *)malloc(sizeof(hos_fd_context_t));
+        memcpy(value, input, sizeof(hos_fd_context_t));
         value->object = (char *)calloc(1, strlen(input->object) + 1);
         value->bucket = (char *)calloc(1, strlen(input->bucket) + 1);
         memcpy(value->bucket, input->bucket, strlen(input->bucket));
@@ -22,7 +22,6 @@ void add_hos_info(hos_info_t **handle, hos_info_t *input)
     else
     {
         value->mode = input->mode;
-        value->handle = input->handle;
         if (value->object != NULL)
         {
             free(value->object);
@@ -50,16 +49,16 @@ void add_hos_info(hos_info_t **handle, hos_info_t *input)
     }
 }
 
-hos_info_t *find_info_by_fd(hos_info_t *handle, size_t fd)
+hos_fd_context_t *find_context_by_fd(hos_fd_context_t *handle, size_t fd)
 {
-    hos_info_t *value = NULL;
+    hos_fd_context_t *value = NULL;
     HASH_FIND_INT(handle, &fd, value);
     return value;
 }
 
-void delete_info_by_fd(hos_info_t **handle, size_t fd)
+void delete_context_by_fd(hos_fd_context_t **handle, size_t fd)
 {
-    hos_info_t *value = NULL;
+    hos_fd_context_t *value = NULL;
 
     HASH_FIND_INT(*handle, &fd, value);
     if (value)
@@ -79,9 +78,9 @@ void delete_info_by_fd(hos_info_t **handle, size_t fd)
     }
 }
 
-void delete_all(hos_info_t **handle)
+void delete_all(hos_fd_context_t **handle)
 {
-    hos_info_t *current, *tmp;
+    hos_fd_context_t *current, *tmp;
     HASH_ITER(hh, *handle, current, tmp)
     {
         if (current->bucket)
