@@ -42,13 +42,13 @@ extern "C"
 
 typedef struct data_info_s
 {
-    volatile size_t tx_pkts;
-    volatile size_t tx_bytes;
-    volatile size_t rx_pkts;
-    volatile size_t rx_bytes;
-    volatile size_t tx_failed_pkts;
-    volatile size_t tx_failed_bytes;
-    volatile size_t cache;
+    size_t *tx_pkts;
+    size_t *tx_bytes;
+    size_t *rx_pkts;
+    size_t *rx_bytes;
+    size_t *tx_failed_pkts;
+    size_t *tx_failed_bytes;
+    size_t *cache;
 }data_info_t;
 
 typedef struct fs2_info_s
@@ -113,8 +113,8 @@ typedef struct hos_client_handle_s
 static struct hos_instance_s g_hos_instance;
 static hos_client_handle_t g_hos_handle;//一个进程只允许有一个g_hos_handle
 static std::mutex m_client_lock;
-static hos_fd_context_t **fd_context;
-static size_t (*fd_info)[MAX_HOS_CLIENT_FD_NUM + 1]; //fd 实际从3开始， fd[thread_id][0]记录register的fd，fd[thread_id][1]记录inject的fd
+static hos_fd_context_t **g_fd_context;
+static size_t (*g_fd_info)[MAX_HOS_CLIENT_FD_NUM + 1]; //fd 实际从3开始， fd[thread_id][0]记录register的fd，fd[thread_id][1]记录inject的fd
 static Aws::SDKOptions g_options;
 
 static inline size_t get_current_ms()
@@ -129,11 +129,11 @@ static size_t hash_get_min_free_fd(size_t thread_id)
     size_t i = 0;
     for (i = 3; i < MAX_HOS_CLIENT_FD_NUM + 1; i++)
     {
-        if (!fd_info[thread_id][i])
+        if (!g_fd_info[thread_id][i])
         {
-            fd_info[thread_id][i] = 1;
-            fd_info[thread_id][HOS_FD_REGISTER]++;
-            fd_info[thread_id][HOS_FD_FREE]--;
+            g_fd_info[thread_id][i] = 1;
+            g_fd_info[thread_id][HOS_FD_REGISTER]++;
+            g_fd_info[thread_id][HOS_FD_FREE]--;
 
             return i; 
         }
@@ -147,10 +147,10 @@ static int hos_delete_fd(size_t fd, size_t thread_id)
     {
         return HOS_PARAMETER_ERROR;
     }
-    delete_context_by_fd(&fd_context[thread_id], fd);
-    fd_info[thread_id][fd] = 0;
-    fd_info[thread_id][HOS_FD_FREE]++;
-    fd_info[thread_id][HOS_FD_INJECT]--;
+    delete_context_by_fd(&g_fd_context[thread_id], fd);
+    g_fd_info[thread_id][fd] = 0;
+    g_fd_info[thread_id][HOS_FD_FREE]++;
+    g_fd_info[thread_id][HOS_FD_INJECT]--;
     
     return HOS_CLIENT_OK;
 }
@@ -165,11 +165,11 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
     hos_func_thread_t *hos_func = &g_hos_handle.hos_func;
     data_info_t *data_info = NULL;
     const Aws::String& uuid = context->GetUUID();
-    size_t thread_id, fd;
-    sscanf(uuid.c_str(), "%lu %lu", &thread_id, &fd);
-    if (fd_info[thread_id][fd])
+    size_t thread_id, fd, stream_len;
+    sscanf(uuid.c_str(), "%lu %lu %lu", &thread_id, &fd, &stream_len);
+    if (g_fd_info[thread_id][fd])
     {
-        a_fd_context = find_context_by_fd(fd_context[thread_id], fd);
+        a_fd_context = find_context_by_fd(g_fd_context[thread_id], fd);
     }
     if (a_fd_context == NULL)
     {
@@ -179,8 +179,8 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
         if (hos_func->fs2_info[FS2_DATA_FLOW_STATE].fs2_handle && hos_func->fs2_info[FS2_DATA_FLOW_STATE].reserved)
         {
             data_info = (data_info_t *)hos_func->fs2_info[FS2_DATA_FLOW_STATE].reserved;
-            atomic_add(&(data_info->tx_failed_pkts), 1);
-            atomic_add(&(data_info->tx_failed_bytes), stream_len);
+            data_info->tx_failed_pkts[thread_id]++;
+            data_info->tx_failed_bytes[thread_id] += stream_len;
         }
         return ; 
     }
@@ -195,20 +195,26 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
         if (hos_func->fs2_info[FS2_DATA_FLOW_STATE].fs2_handle && hos_func->fs2_info[FS2_DATA_FLOW_STATE].reserved)
         {
             data_info = (data_info_t *)hos_func->fs2_info[FS2_DATA_FLOW_STATE].reserved;
-            atomic_add(&(data_info->tx_failed_pkts), 1);
-            atomic_add(&(data_info->tx_failed_bytes), stream_len);
+            data_info->tx_failed_pkts[thread_id]++;
+            data_info->tx_failed_bytes[thread_id] += stream_len;
         }
     }
     else
     {
-        MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-            "[%s:%s] upload success", a_fd_context->bucket, a_fd_context->object);
-
         if (hos_func->fs2_info[FS2_DATA_FLOW_STATE].fs2_handle && hos_func->fs2_info[FS2_DATA_FLOW_STATE].reserved)
         {
             data_info = (data_info_t *)hos_func->fs2_info[FS2_DATA_FLOW_STATE].reserved;
-            atomic_add(&(data_info->tx_pkts), 1);
-            atomic_add(&(data_info->tx_bytes), stream_len);
+            data_info->tx_pkts[thread_id]++;
+            data_info->tx_bytes[thread_id] += stream_len;
+            MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
+                                    "[%s:%s] upload success. tx_pkts:%d, tx_bytes:%d",
+                                    a_fd_context->bucket, a_fd_context->object,
+                                    data_info->tx_pkts[thread_id], data_info->tx_bytes[thread_id]);
+        }
+        else
+        {
+            MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
+                                    "[%s:%s] upload success. stream size:%d", a_fd_context->bucket, a_fd_context->object, stream_len);
         }
     }
     put_finished_callback callback = (put_finished_callback)a_fd_context->callback;
@@ -271,12 +277,12 @@ static void hos_client_create()
     g_hos_handle.count++;
     g_hos_handle.executor = std::dynamic_pointer_cast<Aws::Utils::Threading::PooledThreadExecutor>(config.executor);
 
-    fd_context = (hos_fd_context_t **)calloc(1, sizeof(hos_fd_context_t *));
-    fd_info = (size_t (*)[MAX_HOS_CLIENT_FD_NUM + 1])calloc(1, sizeof(size_t [MAX_HOS_CLIENT_FD_NUM + 1]));
+    g_fd_context = (hos_fd_context_t **)calloc(hos_conf->thread_num, sizeof(hos_fd_context_t *));
+    g_fd_info = (size_t (*)[MAX_HOS_CLIENT_FD_NUM + 1])calloc(hos_conf->thread_num, sizeof(size_t [MAX_HOS_CLIENT_FD_NUM + 1]));
 
     for (size_t i = 0; i < hos_conf->thread_num; i++)
     {
-        fd_info[i][0] = 65533;
+        g_fd_info[i][0] = 65533;
     }
 
     MESA_handle_runtime_log(log, RLOG_LV_DEBUG, "hos_client_create", "hos s3client create success, url:%s.",endpoint);
@@ -315,13 +321,22 @@ static void *fs2_statistics(void *ptr)
     size_t tx_pkts_sum = 0;
     size_t tx_bytes_sum = 0;
     size_t tx_failed_bytes_sum = 0;
+    size_t tx_failed_pkts_sum = 0;
     size_t cache_sum = 0;
     size_t rx_pkts_interval = 0;
     size_t rx_bytes_interval = 0;
     size_t tx_pkts_interval = 0;
     size_t tx_bytes_interval = 0;
     size_t tx_failed_bytes_interval = 0;
+    size_t tx_failed_pkts_interval = 0;
     size_t cache_interval = 0;
+    size_t rx_pkts_last = 0;
+    size_t rx_bytes_last = 0;
+    size_t tx_pkts_last = 0;
+    size_t tx_bytes_last = 0;
+    size_t tx_failed_bytes_last = 0;
+    size_t tx_failed_pkts_last = 0;
+    size_t cache_last = 0;
     fs2_info_t *fs2_info = NULL; 
     int PoolThread_state[3] = {0, 0, 0};//{PoolSize, Busy, TopBusy}
     int *busy = &PoolThread_state[1];
@@ -339,35 +354,58 @@ static void *fs2_statistics(void *ptr)
         }
 
         //pkts and bytes info
+        rx_pkts_sum = 0;
+        rx_bytes_sum = 0;
+        tx_pkts_sum = 0;
+        tx_bytes_sum = 0;
+        tx_failed_bytes_sum = 0;
+        tx_failed_pkts_sum = 0;
+        cache_sum = 0;
+
         fs2_info = &hos_func->fs2_info[0];
         data_info_t *data_info = (data_info_t *)fs2_info->reserved;
-        rx_pkts_interval = atomic_read(&(data_info->rx_pkts));
-        rx_bytes_interval = atomic_read(&(data_info->rx_bytes));
-        tx_pkts_interval = atomic_read(&(data_info->tx_pkts));
-        tx_bytes_interval = atomic_read(&(data_info->tx_bytes));
-        tx_failed_bytes_interval = atomic_read(&(data_info->tx_failed_bytes));
-        cache_interval = atomic_read(&(data_info->cache));
+        for (i = 0; i < hos_conf->thread_num; i++)
+        {
+            rx_pkts_sum += data_info->rx_pkts[i];
+            rx_bytes_sum += data_info->rx_bytes[i];
+            tx_pkts_sum += data_info->tx_pkts[i];
+            tx_bytes_sum += data_info->tx_bytes[i];
+            tx_failed_bytes_sum += data_info->tx_failed_bytes[i];
+            tx_failed_pkts_sum += data_info->tx_failed_pkts[i];
+            cache_sum += data_info->cache[i];
+        }
 
-        rx_pkts_sum += rx_pkts_interval;
-        rx_bytes_sum += rx_bytes_interval;
-        tx_pkts_sum += tx_pkts_interval;
-        tx_bytes_sum += tx_bytes_interval;
-        tx_failed_bytes_sum += tx_failed_bytes_interval;
-        //cache_sum += cache_interval;
+        rx_pkts_interval = rx_pkts_sum - rx_pkts_last;
+        rx_bytes_interval = rx_bytes_sum - rx_bytes_last;
+        tx_pkts_interval = tx_pkts_sum - tx_pkts_last;
+        tx_bytes_interval = tx_bytes_sum - tx_bytes_last;
+        tx_failed_pkts_interval = tx_failed_pkts_sum - tx_failed_pkts_last;
+        tx_failed_bytes_interval = tx_failed_bytes_sum - tx_failed_bytes_last;
+        cache_interval = cache_sum - cache_last;
+
+        rx_pkts_last = rx_pkts_sum;
+        rx_bytes_last = rx_bytes_sum;
+        tx_pkts_last = tx_pkts_sum;
+        tx_bytes_last = tx_bytes_sum;
+        tx_failed_bytes_last = tx_failed_bytes_sum;
+        tx_failed_pkts_last = tx_failed_pkts_sum;
+        cache_last = cache_sum;
 
         FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[0], fs2_info->column_ids[0], FS_OP_SET, rx_pkts_interval);
         FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[0], fs2_info->column_ids[1], FS_OP_SET, rx_bytes_interval);
         FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[0], fs2_info->column_ids[2], FS_OP_SET, tx_pkts_interval);
         FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[0], fs2_info->column_ids[3], FS_OP_SET, tx_bytes_interval);
+        FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[0], fs2_info->column_ids[5], FS_OP_SET, tx_failed_pkts_interval);
         FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[0], fs2_info->column_ids[4], FS_OP_SET, tx_failed_bytes_interval);
-        FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[0], fs2_info->column_ids[5], FS_OP_SET, cache_interval);
+        FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[0], fs2_info->column_ids[6], FS_OP_SET, cache_interval);
 
         FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[1], fs2_info->column_ids[0], FS_OP_SET, rx_pkts_sum);
         FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[1], fs2_info->column_ids[1], FS_OP_SET, rx_bytes_sum);
         FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[1], fs2_info->column_ids[2], FS_OP_SET, tx_pkts_sum);
         FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[1], fs2_info->column_ids[3], FS_OP_SET, tx_bytes_sum);
-        FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[1], fs2_info->column_ids[4], FS_OP_SET, tx_failed_bytes_sum);
-        FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[1], fs2_info->column_ids[5], FS_OP_SET, cache_sum);
+        FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[1], fs2_info->column_ids[4], FS_OP_SET, tx_failed_pkts_sum);
+        FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[1], fs2_info->column_ids[5], FS_OP_SET, tx_failed_bytes_sum);
+        FS_operate(fs2_info->fs2_handle, fs2_info->line_ids[1], fs2_info->column_ids[6], FS_OP_SET, cache_sum);
 
         //PoolThread State
         *busy = g_hos_handle.executor->GetTaskSize();
@@ -391,7 +429,7 @@ static void hos_expand_fs2(const char * path, int format, char *server_ip, int p
     screen_stat_handle_t fs2_handle = NULL;
     const char *app_name[] = {"hos-data", "hos-poolthread"};
     int value = 0;
-    //hos_config_t *hos_conf = &g_hos_handle.hos_config;
+    hos_config_t *hos_conf = &g_hos_handle.hos_config;
     hos_func_thread_t *hos_func = &g_hos_handle.hos_func;
     size_t i = 0;
 
@@ -443,7 +481,12 @@ static void hos_expand_fs2(const char * path, int format, char *server_ip, int p
     fs2_info->line_ids = (int *)calloc(2, sizeof(int));
     fs2_info->column_ids = (int *)calloc(6, sizeof(int));
 
-    //line info
+    //data info
+    /**********************************************************************************************************
+     *              rx_pkts     rx_bytes    tx_pkts     tx_bytes    tx_failed_p     tx_failed_b     cache_bytes
+     * current      10          100         1           100         0               0               100
+     * total        100         1000        10          1000        0               0               100(无实意)
+    ***********************************************************************************************************/
     const char *data_col[] = {"rx_pkts", "rx_bytes", "tx_pkts", "tx_bytes", "tx_failed_b", "cache_bytes"};
     for (i = 0; i < sizeof(data_col) / sizeof(const char *); i++)
     {
@@ -456,12 +499,15 @@ static void hos_expand_fs2(const char * path, int format, char *server_ip, int p
 
     data_info_t *data_info = (data_info_t *)calloc(1, sizeof(data_info_t));
     fs2_info->reserved = (void *)data_info;
-    #if 0
+    #if 1
     data_info->tx_pkts = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
     data_info->tx_bytes = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
     data_info->rx_pkts = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
     data_info->rx_bytes = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
+    data_info->tx_failed_pkts = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
     data_info->tx_failed_bytes = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
+    data_info->cache = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
+    #else
     data_info->tx_pkts_last = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
     data_info->tx_bytes_last = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
     data_info->rx_pkts_last = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
@@ -505,7 +551,7 @@ static bool hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_
     //设置回调函数
     std::shared_ptr<Aws::Client::AsyncCallerContext> context = 
         Aws::MakeShared<Aws::Client::AsyncCallerContext>("");
-    sprintf(buf, "%lu %lu", thread_id, fd);
+    sprintf(buf, "%lu %lu %lu", thread_id, fd, stream_len);
     context->SetUUID(buf);
 
     Aws::S3::S3Client& S3Client = *(g_hos_handle.S3Client);
@@ -526,8 +572,8 @@ static bool hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_
             if (hos_func->fs2_info[0].reserved)
             {
                 data_info = (data_info_t *)hos_func->fs2_info[0].reserved;
-                atomic_add(&(data_info->tx_failed_pkts), 1);
-                atomic_add(&(data_info->tx_failed_bytes), stream_len);
+                data_info->tx_failed_pkts[thread_id]++;
+                data_info->tx_failed_bytes[thread_id] += stream_len;
             }
         }
     }
@@ -545,15 +591,22 @@ static bool hos_putobject_sync(Aws::S3::Model::PutObjectRequest& request, size_t
     Aws::S3::Model::PutObjectOutcome Outcome = S3Client.PutObject(request);
     if (Outcome.IsSuccess())
     {
-        MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-            "PutObject success. [%s:%s]", bucket, object);
-
         if (hos_func->fs2_info[FS2_DATA_FLOW_STATE].fs2_handle && hos_func->fs2_info[FS2_DATA_FLOW_STATE].reserved)
         {
             data_info = (data_info_t *)hos_func->fs2_info[FS2_DATA_FLOW_STATE].reserved;
-            atomic_add(&(data_info->tx_pkts), 1);
-            atomic_add(&(data_info->tx_bytes), stream_len);
+            data_info->tx_pkts[thread_id]++;
+            data_info->tx_bytes[thread_id] += stream_len;
+            MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
+                                    "PutObject success. [%s:%s] tx_pkts:%d, tx_bytes:%d",
+                                    bucket, object, data_info->tx_pkts[thread_id], data_info->tx_bytes[thread_id]);
         }
+        else
+        {
+            MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
+                                    "PutObject success. [%s:%s]", bucket, object);
+        }
+
+
 
         return true;
     }
@@ -565,8 +618,8 @@ static bool hos_putobject_sync(Aws::S3::Model::PutObjectRequest& request, size_t
         if (hos_func->fs2_info[FS2_DATA_FLOW_STATE].fs2_handle && hos_func->fs2_info[FS2_DATA_FLOW_STATE].reserved)
         {
             data_info = (data_info_t *)hos_func->fs2_info[FS2_DATA_FLOW_STATE].reserved;
-            atomic_add(&(data_info->tx_failed_pkts), 1);
-            atomic_add(&(data_info->tx_failed_bytes), stream_len);
+            data_info->tx_failed_pkts[thread_id]++;
+            data_info->tx_failed_bytes[thread_id] += stream_len;
         }
 
         return false;
@@ -738,8 +791,8 @@ static int hos_upload_stream(const char *bucket, const char *object, const char 
         if (hos_func->fs2_info[0].reserved)
         {
             data_info = (data_info_t *)hos_func->fs2_info[0].reserved;
-            atomic_add(&(data_info->rx_pkts), 1);
-            atomic_add(&(data_info->rx_bytes), data_len);
+            data_info->rx_pkts[thread_id]++;
+            data_info->rx_bytes[thread_id] += data_len;
         }
     }
 
@@ -751,7 +804,7 @@ static int hos_upload_stream(const char *bucket, const char *object, const char 
     context->SetUUID(buf);
     
     hos_fd_context_t info = {fd, 0, (char *)bucket, (char *)object, (void *)callback, userdata, NULL, 0, 0, 0 };
-    add_fd_context(&fd_context[thread_id], &info);
+    add_fd_context(&g_fd_context[thread_id], &info);
     
     if (hos_conf->pool_thread_size > 0)
     {
@@ -821,9 +874,9 @@ static void *hos_fd_manage(void *ptr)
         {
             for(fd = 3; fd < MAX_HOS_CLIENT_FD_NUM + 1; fd++)
             {
-                if (!fd_info[thread_num][fd])
+                if (!g_fd_info[thread_num][fd])
                     continue;
-                a_fd_context = find_context_by_fd(fd_context[thread_num], fd);
+                a_fd_context = find_context_by_fd(g_fd_context[thread_num], fd);
                 if (!a_fd_context)
                     continue;
                 if (a_fd_context->fd_status == HOS_FD_INJECT)
@@ -866,9 +919,9 @@ int hos_open_fd(const char *bucket, const char *object, put_finished_callback ca
         MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, "hos_open_fd", 
             "error:fd not enough, thread_id:%d, fd free: %d, fd register:%d, fd inject:%d",
              thread_id,
-             fd_info[thread_id][HOS_FD_FREE],
-             fd_info[thread_id][HOS_FD_REGISTER],
-             fd_info[thread_id][HOS_FD_INJECT]);
+             g_fd_info[thread_id][HOS_FD_FREE],
+             g_fd_info[thread_id][HOS_FD_REGISTER],
+             g_fd_info[thread_id][HOS_FD_INJECT]);
         MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_DEBUG, "hos_open_fd", "thread_id:%d, fd:%d", thread_id, fd);
         return HOS_FD_NOT_ENOUGH;
     }
@@ -878,7 +931,7 @@ int hos_open_fd(const char *bucket, const char *object, put_finished_callback ca
         NULL,/*cache*/ g_hos_handle.hos_config.cache_count, 0,/*position*/ 0,/*recive_cnt*/
         (long)g_hos_handle.hos_config.cache_size,/*cache_rest*/ HOS_FD_REGISTER,/*fd_status*/ 
         0,/*overtime*/ g_hos_handle.hos_config.timeout,};
-    add_fd_context(&fd_context[thread_id], &info);
+    add_fd_context(&g_fd_context[thread_id], &info);
 
     {
         std::lock_guard<std::mutex> locker(m_client_lock);
@@ -911,9 +964,9 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
         return HOS_PARAMETER_ERROR;
     }
 
-    if (fd_info[thread_id][fd])
+    if (g_fd_info[thread_id][fd])
     {
-        a_fd_context = find_context_by_fd(fd_context[thread_id], fd);
+        a_fd_context = find_context_by_fd(g_fd_context[thread_id], fd);
     }
     if (a_fd_context == NULL)
     {
@@ -928,8 +981,8 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
         if (hos_func->fs2_info[0].reserved)
         {
             data_info = (data_info_t *)hos_func->fs2_info[0].reserved;
-            atomic_add(&(data_info->rx_pkts), 1);
-            atomic_add(&(data_info->rx_bytes), stream_len);
+            data_info->rx_pkts[thread_id]++;
+            data_info->rx_bytes[thread_id] += stream_len;
         }
     }
 
@@ -945,12 +998,13 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
             //APPEND_MODE
             if (a_fd_context->cache == NULL)
             {
-                a_fd_context->cache = Aws::MakeShared<Aws::StringStream>("hos_write append mode");
+                //a_fd_context->cache = Aws::MakeShared<Aws::StringStream>("hos_write append mode");
+                a_fd_context->cache = std::make_shared<Aws::StringStream>();
             }
             Aws::String buffer(stream, stream_len);
             *a_fd_context->cache << buffer;
             a_fd_context->cache_rest -= stream_len;
-            atomic_add(&(data_info->cache), stream_len);
+            data_info->cache[thread_id] += stream_len;
             if (a_fd_context->cache_count == 0 || --a_fd_context->cache_count)
             {
                 //cache_count == 0,不设置cache_count的情况
@@ -970,7 +1024,9 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
             headers["x-hos-position"] = num;
             request.SetMetadata(headers);
 
-            upload_len = a_fd_context->cache->gcount();
+            a_fd_context->cache->seekg(0, std::ios_base::end);
+            upload_len = a_fd_context->cache->tellg();
+            a_fd_context->cache->seekg(0, std::ios_base::beg);
             MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "x-hos-posotion:%s", num);
         }
         else
@@ -1012,7 +1068,9 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
     //恢复fd 的cache设置
     if (a_fd_context->mode & APPEND_MODE)
     {
-        atomic_sub(&(data_info->cache), a_fd_context->cache->gcount());
+        a_fd_context->cache->seekg(0, std::ios_base::end);
+        data_info->cache[thread_id] += upload_len;
+        a_fd_context->cache->seekg(0, std::ios_base::beg);
         a_fd_context->cache.reset();
         a_fd_context->cache = NULL;
         a_fd_context->cache_rest = hos_conf->cache_size;
@@ -1033,11 +1091,11 @@ int hos_close_fd(size_t fd, size_t thread_id)
 {
     hos_fd_context_t *a_fd_context = NULL;
     char num[128];
-    char buf[128];
-    int ret = 0;
-    data_info_t *data_info = NULL;
     hos_config_t *hos_conf = &g_hos_handle.hos_config;
-    hos_func_thread_t *hos_func = &g_hos_handle.hos_func;
+<<<<<<< HEAD
+    size_t upload_len = 0;
+=======
+>>>>>>> c9c751ab... 增加同步模式
 
     if (fd < 3 || thread_id > hos_conf->thread_num)
     {
@@ -1046,9 +1104,9 @@ int hos_close_fd(size_t fd, size_t thread_id)
             fd, thread_id, hos_conf->thread_num);
         return HOS_PARAMETER_ERROR;
     }
-    if (fd_info[thread_id][fd])
+    if (g_fd_info[thread_id][fd])
     {
-        a_fd_context = find_context_by_fd(fd_context[thread_id], fd);
+        a_fd_context = find_context_by_fd(g_fd_context[thread_id], fd);
     }
     if (a_fd_context == NULL)
     {
@@ -1063,8 +1121,6 @@ int hos_close_fd(size_t fd, size_t thread_id)
     {
         if (a_fd_context->cache_rest != (long)hos_conf->cache_size && a_fd_context->cache != NULL)
         {
-            Aws::S3::S3Client& S3Client = *(g_hos_handle.S3Client);
-
             // Create and configure the asynchronous put object request.
             Aws::S3::Model::PutObjectRequest request;
             request.SetBucket(a_fd_context->bucket);
@@ -1078,44 +1134,26 @@ int hos_close_fd(size_t fd, size_t thread_id)
             headers["x-hos-upload-type"] = "append";
             headers["x-hos-position"] = num;
             request.SetMetadata(headers);
+            a_fd_context->cache->seekg(0, std::ios_base::end);
+            upload_len = a_fd_context->cache->tellg();
+            a_fd_context->cache->seekg(0, std::ios_base::beg);
 
-            std::shared_ptr<Aws::Client::AsyncCallerContext> context = 
-                Aws::MakeShared<Aws::Client::AsyncCallerContext>("");
-            sprintf(buf, "%lu %lu", thread_id, fd);
-            context->SetUUID(buf);
-
-            ret = S3Client.PutObjectAsync(request, PutObjectAsyncFinished, context);
-            if (ret)
+            if (hos_conf->pool_thread_size > 0)
             {
-                MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "PutObjectAsync success.");
-                if (hos_func->fs2_info[0].fs2_handle)
-                {
-                    if (hos_func->fs2_info[0].reserved)
-                        data_info = (data_info_t *)hos_func->fs2_info[0].reserved;
-
-                    if (data_info)
-                    {
-                        atomic_add(&(data_info->tx_pkts), 1);
-                        atomic_add(&(data_info->tx_bytes), a_fd_context->cache->gcount());
-                    }
-                }
+<<<<<<< HEAD
+                hos_putobject_async(request, upload_len, thread_id, fd, a_fd_context->bucket, a_fd_context->object);
             }
             else
             {
-                MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "PutObjectAsync failed");
-                if (hos_func->fs2_info[0].fs2_handle)
-                {
-                    if (hos_func->fs2_info[0].reserved)
-                        data_info = (data_info_t *)hos_func->fs2_info[0].reserved;
-
-                    if (data_info)
-                    {
-                        atomic_add(&(data_info->tx_failed_pkts), 1);
-                        atomic_add(&(data_info->tx_failed_bytes), a_fd_context->cache->gcount());
-                    }
-                }
+                hos_putobject_sync(request, upload_len, thread_id, fd, a_fd_context->bucket, a_fd_context->object);
+=======
+                hos_putobject_async(request, a_fd_context->cache->gcount(), thread_id, fd, a_fd_context->bucket, a_fd_context->object);
             }
-            atomic_sub(&(data_info->cache), a_fd_context->cache->gcount());
+            else
+            {
+                hos_putobject_sync(request, a_fd_context->cache->gcount(), thread_id, fd, a_fd_context->bucket, a_fd_context->object);
+>>>>>>> c9c751ab... 增加同步模式
+            }
         }
     }
     a_fd_context->fd_status = HOS_FD_INJECT;
@@ -1125,8 +1163,8 @@ int hos_close_fd(size_t fd, size_t thread_id)
     a_fd_context->cache_rest = hos_conf->cache_size;
     a_fd_context->cache_count = hos_conf->cache_count;
 
-    fd_info[thread_id][HOS_FD_REGISTER]--;
-    fd_info[thread_id][HOS_FD_INJECT]++;
+    g_fd_info[thread_id][HOS_FD_REGISTER]--;
+    g_fd_info[thread_id][HOS_FD_INJECT]++;
 
     return HOS_CLIENT_OK;
 }
@@ -1167,9 +1205,9 @@ int hos_shutdown_instance()
             FS_stop(fs2_handle);
             if (hos_func->fs2_info[i].reserved)
             {
-                #if 0
                 if (i == 0)
                 {
+                #if 1
                     data_info_t * data_info = (data_info_t *)hos_func->fs2_info[i].reserved;
                     if (data_info->rx_pkts)
                         free(data_info->rx_pkts);
@@ -1179,6 +1217,13 @@ int hos_shutdown_instance()
                         free(data_info->tx_pkts);
                     if (data_info->tx_bytes)
                         free(data_info->tx_bytes);
+                    if (data_info->tx_failed_bytes)
+                        free(data_info->tx_failed_bytes);
+                    if (data_info->tx_failed_pkts);
+                        free(data_info->tx_failed_pkts);
+                    if (data_info->cache)
+                        free(data_info->cache);
+                #else
                     if (data_info->rx_pkts_last)
                         free(data_info->rx_pkts_last);
                     if (data_info->rx_bytes_last)
@@ -1187,8 +1232,8 @@ int hos_shutdown_instance()
                         free(data_info->tx_pkts_last);
                     if (data_info->tx_bytes_last)
                         free(data_info->tx_bytes_last);
-                }
                 #endif
+                }
                 free(hos_func->fs2_info[i].reserved);
             }
             if (hos_func->fs2_info[i].line_ids)
@@ -1202,19 +1247,19 @@ int hos_shutdown_instance()
     g_hos_handle.S3Client = NULL;
     MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "delete s3client.");
 
-    if (fd_info)
+    if (g_fd_info)
     {
-        free(fd_info);
+        free(g_fd_info);
     }
 
     for (i = 0; i < hos_conf->thread_num; i++)
     {
-        delete_all(&fd_context[i]);
+        delete_all(&g_fd_context[i]);
     }
 
-    if (fd_context)
+    if (g_fd_context)
     {
-        free(fd_context);
+        free(g_fd_context);
     }
 
     Aws::ShutdownAPI(g_options);
