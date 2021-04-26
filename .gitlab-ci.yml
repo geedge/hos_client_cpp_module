@@ -3,7 +3,7 @@ variables:
   GIT_STRATEGY: "clone"
   BUILD_PADDING_PREFIX: /tmp/padding_for_CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX_PREFIX_PREFIX_PREFIX_PREFIX_PREFIX/
   INSTALL_PREFIX: "/home/mesasoft/sapp_run/"
-  INSTALL_DEPENDENCY_LIBRARY: framework_env libMESA_field_stat2-devel zlib-devel openssl-devel curl-devel libMESA_prof_load libMESA_handle_logger
+  INSTALL_DEPENDENCY_LIBRARY: framework_env libMESA_field_stat2-devel zlib-devel openssl-devel curl-devel libMESA_prof_load-devel libMESA_handle_logger-devel
   TESTING_VERSION_BUILD: 0
 
 stages:
