@@ -27,24 +27,27 @@ static size_t  calc_time(struct timespec start, struct timespec end)
         (start.tv_sec * 1000 * 1000 * 1000 + start.tv_nsec));
 }
 
-int file_to_buffer(const char *file, char *buffer)
+int file_to_buffer(const char *file, char *buffer, int size)
 {
     FILE *fp = fopen(file, "r");
     int num = 0;
-    int len = 0;
+
     if (fp == NULL)
     {
         printf("fopen file failed:%s\n", file);
         return -1;
     }
     do{
-        num = fread(&buffer[len], 1, 4096, fp);
+        num = fread(buffer, 1, size, fp);
         if (num < 0)
         {
             return -1;
         }
-        len += num;
-    }while(num == 4096);
+        else if (num < size)
+        {
+            return 0;
+        }
+    }while(1);
     fclose(fp);
     return 0;
 }
@@ -84,13 +87,17 @@ int main(int argc, char *argv[])
         return -1;
     }
     
-    buf = (char *)calloc(1, buffer.st_size);
+    buf = (char *)calloc(1, buffer.st_size +1);
 
-    if (file_to_buffer(file_name, buf) == -1)
+#if 0
+    if (file_to_buffer(file_name, buf, buffer.st_size) == -1)
     {
         free(buf);
         return -1;
     }
+    #else
+    snprintf(buf, 1024, "this is a test");
+    #endif
 
     printf("hos_init_instance start ...\n");
     hos_instance = hos_get_instance();
