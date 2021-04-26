@@ -237,6 +237,13 @@ static void hos_client_create()
     hos_config_t *hos_conf = &g_hos_handle.hos_config;
     void *log = g_hos_handle.log;
 
+    if (g_hos_handle.S3Client != NULL)
+    {
+        g_hos_handle.count++;
+        g_hos_instance.result = true;
+        return ;
+    }
+
     Aws::InitAPI(g_options);
     Aws::Client::ClientConfiguration config;
     Aws::Auth::AWSCredentials credentials(hos_conf->accesskeyid, hos_conf->secretkey);
@@ -626,6 +633,18 @@ static bool hos_putobject_sync(Aws::S3::Model::PutObjectRequest& request, size_t
     }
 }
 
+hos_instance hos_get_instance()
+{
+    if (g_hos_handle.S3Client != NULL)
+    {
+        g_hos_handle.count++;
+        g_hos_instance.result = true;
+        return &g_hos_instance;
+    }
+    g_hos_instance.result = false;
+    return &g_hos_instance;
+}
+
 hos_instance hos_init_instance(const char *conf_path, const char *module, size_t thread_num, const char *bucket)
 {
     hos_config_t *hos_conf = &g_hos_handle.hos_config;
@@ -650,12 +669,13 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
     MESA_load_profile_uint_def(conf_path, module, "hos_cache_size", &hos_conf->cache_size, 102400);
     MESA_load_profile_uint_def(conf_path, module, "hos_cache_count", &hos_conf->cache_count, 10);
     MESA_load_profile_uint_def(conf_path, module, "hos_fd_live_time_ms", &hos_conf->timeout, 1000);
-    MESA_load_profile_string_nodef(conf_path, module, "hos_fs2_serverip", hos_conf->fs2_ip, MAX_HOS_STRING_LEN);
+    MESA_load_profile_string_nodef(conf_path, module, "hos_fs2_serverip", hos_conf->fs2_ip, INET6_ADDRSTRLEN);
     MESA_load_profile_uint_nodef(conf_path, module, "hos_fs2_serverport", &hos_conf->fs2_port);
     MESA_load_profile_string_def(conf_path, module, "hos_fs2_path", hos_conf->fs2_path, sizeof(hos_conf->fs2_path), "./hos_fs2.stat");
     MESA_load_profile_uint_def(conf_path, module, "hos_fs2_format", &hos_conf->fs2_fmt, 0);
-    if (hos_conf->ip && hos_conf->port && hos_conf->accesskeyid && hos_conf->secretkey)
+    if (hos_conf->ip && hos_conf->port && strlen(hos_conf->accesskeyid) && strlen(hos_conf->secretkey))
     {
+        MESA_handle_runtime_log_creation("./log");
         g_hos_handle.log = MESA_create_runtime_log_handle(hos_conf->log_path, hos_conf->log_level);
         if (log == NULL)
         {
@@ -1092,10 +1112,7 @@ int hos_close_fd(size_t fd, size_t thread_id)
     hos_fd_context_t *a_fd_context = NULL;
     char num[128];
     hos_config_t *hos_conf = &g_hos_handle.hos_config;
-<<<<<<< HEAD
     size_t upload_len = 0;
-=======
->>>>>>> c9c751ab... 增加同步模式
 
     if (fd < 3 || thread_id > hos_conf->thread_num)
     {
@@ -1140,19 +1157,11 @@ int hos_close_fd(size_t fd, size_t thread_id)
 
             if (hos_conf->pool_thread_size > 0)
             {
-<<<<<<< HEAD
                 hos_putobject_async(request, upload_len, thread_id, fd, a_fd_context->bucket, a_fd_context->object);
             }
             else
             {
                 hos_putobject_sync(request, upload_len, thread_id, fd, a_fd_context->bucket, a_fd_context->object);
-=======
-                hos_putobject_async(request, a_fd_context->cache->gcount(), thread_id, fd, a_fd_context->bucket, a_fd_context->object);
-            }
-            else
-            {
-                hos_putobject_sync(request, a_fd_context->cache->gcount(), thread_id, fd, a_fd_context->bucket, a_fd_context->object);
->>>>>>> c9c751ab... 增加同步模式
             }
         }
     }

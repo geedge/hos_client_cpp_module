@@ -105,11 +105,10 @@ hos_instance hos_client_create(const char *serverip, size_t port, const char *ac
 *************************************************************************************/
 hos_instance hos_init_instance(const char *conf_path, const char *module, size_t thread_num, const char *bucket);
 /*************************************************************************************
- * 函数名： hos_create_bucket
- * 参数:    const char *bucket  桶名称
- * 返回值： bool 成功返回true，失败返回false
+ * 函数名： hos_get_instance
+ * 返回值： hos_instance 成功，result 为true
 *************************************************************************************/
-//bool hos_verify_bucket(const char *bucket);
+hos_instance hos_get_instance();
 /*************************************************************************************
  * 函数名： hos_create_bucket
  * 参数：   const char * bucket         桶名称

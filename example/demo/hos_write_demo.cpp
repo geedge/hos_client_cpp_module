@@ -1,0 +1,155 @@
+/*************************************************************************
+    > File Name: single_thread.cpp
+    > Author: pxz
+    > Created Time: Fri 11 Sep 2020 09:52:05 AM CST
+ ************************************************************************/
+extern "C"
+{
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<string.h>
+#include<time.h>
+#include<sys/stat.h>
+}
+#include"hos_client.h"
+
+//#define test_times 10000
+
+typedef struct userdata_s
+{
+    struct timespec *finished;
+}userdata_t;
+
+static size_t  calc_time(struct timespec start, struct timespec end)
+{
+    return (end.tv_sec * 1000 * 1000 * 1000 + end.tv_nsec - 
+        (start.tv_sec * 1000 * 1000 * 1000 + start.tv_nsec));
+}
+
+int file_to_buffer(const char *file, char *buffer, size_t *len)
+{
+    FILE *fp = fopen(file, "r");
+    int num = 0;
+    *len = 0;
+    if (fp == NULL)
+    {
+        printf("fopen file failed:%s\n", file);
+        return -1;
+    }
+    do{
+        num = fread(&buffer[*len], 1, 4096, fp);
+        if (num < 0)
+        {
+            return -1;
+        }
+        *len += num;
+    }while(num == 4096);
+    fclose(fp);
+    return 0;
+}
+
+void callback(bool result, const char *error, const char *bucket, const char *object, void *userdata)
+{
+    userdata_t *data = (userdata_t *)userdata;
+    clock_gettime(CLOCK_MONOTONIC, data->finished);
+    return ;
+}
+
+int main(int argc, char *argv[])
+{
+    if (argc != 4)
+    {
+        printf("usege: [conf file] [module name] [file name]\n");
+        return -1;
+    }
+    struct timespec start, end, finished;
+    size_t time;
+    int i = 0;
+    char *conf_file = argv[1];
+    char *module_name = argv[2];
+    char *file_name = argv[3];
+    struct stat buffer;    
+    char *buf = NULL;
+    size_t buf_size;
+    int mode = FILE_MODE;
+    size_t fd[10001] = {0}; 
+    userdata_t data = {&finished};
+    hos_instance hos_instance = NULL;
+    char object[1024];
+
+    if (stat(file_name, &buffer) == -1)
+    {
+        printf("%s not exits.", conf_file);
+        return -1;
+    }
+    
+    buf = (char *)calloc(1, buffer.st_size);
+
+    if (file_to_buffer(file_name, buf, &buf_size) == -1)
+    {
+        free(buf);
+        return -1;
+    }
+
+    printf("hos_init_instance start ...\n");
+    hos_instance = hos_get_instance();
+    if (hos_instance->result == false)
+    {
+        hos_instance = hos_init_instance(conf_file, module_name, 1, "hos_test_bucket");
+    }
+    if (hos_instance->result == false) 
+    {
+        printf("error:hos_init_instance\n");
+        printf("error:%s", hos_instance->error_message);
+        return -1;
+    }  
+    printf("hos_init_instance success ... \n");
+
+    mode = FILE_MODE;
+    printf("hos_write file start ...\n");
+    snprintf(object, 1023, "%s_write_file", file_name);
+    fd[0] = hos_open_fd("hos_test_bucket", object, callback, NULL, 0, mode);
+    if (hos_write(fd[i], file_name, 0, 0) != HOS_CLIENT_OK)
+    {
+        printf("error: hos_write fialed!\n");
+    }
+    hos_close_fd(fd[1], 0);
+    printf("hos_write file end ...\n");
+
+    mode = BUFF_MODE;
+    printf("hos_write buff start ...\n");
+    snprintf(object, 1023, "%s_write_buff", file_name);
+    fd[1] = hos_open_fd("hos_test_bucket", object, callback, NULL, 0, mode);
+    if (hos_write(fd[i], buf, buffer.st_size, 0) != HOS_CLIENT_OK)
+    {
+        printf("error: hos_write failed!\n");
+    }
+    hos_close_fd(fd[1], 0);
+    printf("hos_write buff end ...\n");
+
+    mode = BUFF_MODE | APPEND_MODE;
+    printf("hos_write buff start ...\n");
+    snprintf(object, 1023, "%s_write_APPEND", file_name);
+    fd[2] = hos_open_fd("hos_test_bucket", object, callback, NULL, 0, mode);
+    if (hos_write(fd[i], buf, buffer.st_size, 0) != HOS_CLIENT_OK)
+    {
+        printf("error: hos_write failed 1st!\n");
+    }
+    if (hos_write(fd[i], buf, buffer.st_size, 0) != HOS_CLIENT_OK)
+    {
+        printf("error: hos_write failed 2nd!\n");
+    }
+    hos_close_fd(fd[2], 0);
+    printf("hos_write buff end ...\n");
+
+    printf("hos_shutdown_instance start ...\n");
+    if (hos_shutdown_instance() != 0)
+    {
+        printf("error: hos_shutdown_instance fialed\n");
+    }
+    printf("hos_shutdown_instance end ...\n");
+    
+    free(buf);
+    return 0;
+}

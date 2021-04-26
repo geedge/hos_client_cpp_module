@@ -9,12 +9,17 @@ set(CMKAE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -shared -fPIC")
 add_library(${lib_name}_shared SHARED hos_client.cpp hos_hash.cpp)
 target_link_libraries(${lib_name}_shared
     "-Wl,--whole-archive"
+    libaws-c-common.a
+    libaws-checksums.a
+    libaws-c-event-stream.a
     libaws-cpp-sdk-core.a 
     libaws-cpp-sdk-s3.a
     "-Wl,--no-whole-archive"
-    libMESA_field_stat2.so
     libcurl.so
-    libpthread.so)
+    libpthread.so
+    libMESA_prof_load.so
+    libMESA_field_stat2.so
+    libMESA_handle_logger.so)
 set_target_properties(${lib_name}_shared PROPERTIES OUTPUT_NAME ${lib_name})
 
 #for ASAN
