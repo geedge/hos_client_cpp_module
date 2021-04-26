@@ -27,23 +27,23 @@ static size_t  calc_time(struct timespec start, struct timespec end)
         (start.tv_sec * 1000 * 1000 * 1000 + start.tv_nsec));
 }
 
-int file_to_buffer(const char *file, char *buffer, size_t *len)
+int file_to_buffer(const char *file, char *buffer)
 {
     FILE *fp = fopen(file, "r");
     int num = 0;
-    *len = 0;
+    int len = 0;
     if (fp == NULL)
     {
         printf("fopen file failed:%s\n", file);
         return -1;
     }
     do{
-        num = fread(&buffer[*len], 1, 4096, fp);
+        num = fread(&buffer[len], 1, 4096, fp);
         if (num < 0)
         {
             return -1;
         }
-        *len += num;
+        len += num;
     }while(num == 4096);
     fclose(fp);
     return 0;
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
     char *buf = NULL;
     size_t buf_size;
     int mode = FILE_MODE;
-    size_t fd[10001] = {0}; 
+    size_t fd = 0; 
     userdata_t data = {&finished};
     hos_instance hos_instance = NULL;
     char object[1024];
@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
     
     buf = (char *)calloc(1, buffer.st_size);
 
-    if (file_to_buffer(file_name, buf, &buf_size) == -1)
+    if (file_to_buffer(file_name, buf) == -1)
     {
         free(buf);
         return -1;
@@ -109,38 +109,38 @@ int main(int argc, char *argv[])
     mode = FILE_MODE;
     printf("hos_write file start ...\n");
     snprintf(object, 1023, "%s_write_file", file_name);
-    fd[0] = hos_open_fd("hos_test_bucket", object, callback, NULL, 0, mode);
-    if (hos_write(fd[i], file_name, 0, 0) != HOS_CLIENT_OK)
+    fd = hos_open_fd("hos_test_bucket", object, callback, NULL, 0, mode);
+    if (hos_write(fd, file_name, 0, 0) != HOS_CLIENT_OK)
     {
         printf("error: hos_write fialed!\n");
     }
-    hos_close_fd(fd[1], 0);
+    hos_close_fd(fd, 0);
     printf("hos_write file end ...\n");
 
     mode = BUFF_MODE;
     printf("hos_write buff start ...\n");
     snprintf(object, 1023, "%s_write_buff", file_name);
-    fd[1] = hos_open_fd("hos_test_bucket", object, callback, NULL, 0, mode);
-    if (hos_write(fd[i], buf, buffer.st_size, 0) != HOS_CLIENT_OK)
+    fd = hos_open_fd("hos_test_bucket", object, callback, NULL, 0, mode);
+    if (hos_write(fd, buf, buffer.st_size, 0) != HOS_CLIENT_OK)
     {
         printf("error: hos_write failed!\n");
     }
-    hos_close_fd(fd[1], 0);
+    hos_close_fd(fd, 0);
     printf("hos_write buff end ...\n");
 
     mode = BUFF_MODE | APPEND_MODE;
     printf("hos_write buff start ...\n");
     snprintf(object, 1023, "%s_write_APPEND", file_name);
-    fd[2] = hos_open_fd("hos_test_bucket", object, callback, NULL, 0, mode);
-    if (hos_write(fd[i], buf, buffer.st_size, 0) != HOS_CLIENT_OK)
+    fd = hos_open_fd("hos_test_bucket", object, callback, NULL, 0, mode);
+    if (hos_write(fd, buf, buffer.st_size, 0) != HOS_CLIENT_OK)
     {
         printf("error: hos_write failed 1st!\n");
     }
-    if (hos_write(fd[i], buf, buffer.st_size, 0) != HOS_CLIENT_OK)
+    if (hos_write(fd, buf, buffer.st_size, 0) != HOS_CLIENT_OK)
     {
         printf("error: hos_write failed 2nd!\n");
     }
-    hos_close_fd(fd[2], 0);
+    hos_close_fd(fd, 0);
     printf("hos_write buff end ...\n");
 
     printf("hos_shutdown_instance start ...\n");
