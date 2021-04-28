@@ -32,6 +32,7 @@ enum hoserrors
     HOS_RUNTIME_LOG_FAILED = -6,
     HOS_CONF_ERROR = -7,
     HOS_BUCKET_NOT_EXIST = -8,
+    HOS_INSTANCE_NOT_INIT = -9,
 
 };
 
@@ -83,19 +84,6 @@ enum s3errors
 
 typedef void (*put_finished_callback)(bool, const char *, const char *, const char *, void *);
 
-/*//FIXME 改为static，不再对外提供 
-*************************************************************************************
- * 函数名： hos_instance
- * 参数：   const char *serverip        目的地址，如"192.168.44.12"
- *          size_t port                 端口号
- *          const char *accesskeyid     AWS access key ID，如"default"
- *          const char *secretkey       AWS secret key，如"default"
- *          siez_t pool_size            线程池大小
- *          size_t thread_sum           线程总数
- * 返回值： 成功返回一个实例，失败返回NULL。
-*************************************************************************************
-hos_instance hos_client_create(const char *serverip, size_t port, const char *accesskeyid, const char *secretkey, size_t pool_size);
-*/
 
 /*************************************************************************************
  * 函数名：   hos_init_instance
@@ -109,6 +97,12 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
  * 返回值： hos_instance 成功，result 为true
 *************************************************************************************/
 hos_instance hos_get_instance();
+/*************************************************************************************
+ * 函数名： hos_verify_bucket
+ * 参数：   const char * bucket         桶名称
+ * 返回值： bool  成功返回true，失败返回false
+*************************************************************************************/
+bool hos_verify_bucket(const char *bucket);
 /*************************************************************************************
  * 函数名： hos_create_bucket
  * 参数：   const char * bucket         桶名称
@@ -125,7 +119,7 @@ int hos_create_bucket(hos_instance instance, const char *bucket);
  *          size_t thread_id            当前线程id
  * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
-int hos_upload_file(hos_instance instance, const char *bucket, const char *file_path, put_finished_callback callback, void* userdata, size_t thread_id);
+int hos_upload_file(const char *bucket, const char *file_path, put_finished_callback callback, void* userdata, size_t thread_id);
 /*************************************************************************************
  * 函数名： hos_upload_buf
  * 参数：   hos_instance instance    非空句柄
@@ -138,7 +132,7 @@ int hos_upload_file(hos_instance instance, const char *bucket, const char *file_
  *          size_t thread_id            当前线程id
  * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
-int hos_upload_buf(hos_instance instance, const char *bucket, const char *object, const char *buf, size_t buf_len, put_finished_callback callback, void *userdata, size_t thread_id);
+int hos_upload_buf(const char *bucket, const char *object, const char *buf, size_t buf_len, put_finished_callback callback, void *userdata, size_t thread_id);
 /*************************************************************************************
  * 函数名： hos_open_fd
  * 参数：   const char * bucket         桶名称

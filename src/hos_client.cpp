@@ -19,6 +19,10 @@ extern "C"
 #include <fstream>
 #include <iostream>
 #include <mutex>
+#include <aws/external/gtest.h>
+#include <aws/testing/platform/PlatformTesting.h>
+#include <aws/testing/TestingEnvironment.h>
+#include <aws/testing/MemoryTesting.h>
 #include "hos_client.h"
 #include "hos_hash.h"
 #include "field_stat2.h"
@@ -296,8 +300,21 @@ static void hos_client_create()
     g_hos_instance.result = true;
 }
 
-static bool hos_verify_bucket(const char *bucket)
+bool hos_verify_bucket(const char *bucket)
 {
+    if (bucket == NULL)
+    {
+        MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
+            "bucket is null");
+        return false;
+    }   
+    if (g_hos_instance.result != true || g_hos_handle.S3Client == NULL)
+    {
+        MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
+            "g_hos_instance.result:%s, g_hos_handle.S3Client:%s",
+            g_hos_instance.result, (g_hos_handle.S3Client==NULL)?(NULL):("not null"));
+        return false;
+    }
     Aws::S3::Model::ListBucketsOutcome outcome = g_hos_handle.S3Client->ListBuckets();
 
     if (outcome.IsSuccess())
@@ -541,7 +558,7 @@ static void hos_expand_fs2()
     return ;
 }
 
-static bool hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_t stream_len,
+static int hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_t stream_len,
     size_t thread_id, size_t fd, const char *bucket, const char *object)
 {
     char buf[128];
@@ -561,6 +578,8 @@ static bool hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_
         //不算真正成功，需要等到PutObjectAsyncFinished的结果
         MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
             "PutObjectAsync success. [%s:%s]", bucket, object);
+        
+        return HOS_CLIENT_OK;
     }
     else
     {
@@ -576,12 +595,11 @@ static bool hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_
                 data_info->tx_failed_bytes[thread_id] += stream_len;
             }
         }
+        return HOS_SEND_FAILED;
     }
-
-    return ret;
 }
 
-static bool hos_putobject_sync(Aws::S3::Model::PutObjectRequest& request, size_t stream_len, size_t thread_id, size_t fd,
+static int hos_putobject_sync(Aws::S3::Model::PutObjectRequest& request, size_t stream_len, size_t thread_id, size_t fd,
     const char *bucket, const char *object)
 {
     hos_func_thread_t *hos_func = &g_hos_handle.hos_func;
@@ -606,14 +624,12 @@ static bool hos_putobject_sync(Aws::S3::Model::PutObjectRequest& request, size_t
                                     "PutObject success. [%s:%s]", bucket, object);
         }
 
-
-
-        return true;
+        return HOS_CLIENT_OK;
     }
     else
     {
         MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-            "PutObject failed. [%s:%s]", bucket, object);
+            "PutObject failed. [%s:%s] cause:%s", bucket, object, Outcome.GetError().GetMessage().c_str());
 
         if (hos_func->fs2_info[FS2_DATA_FLOW_STATE].fs2_handle && hos_func->fs2_info[FS2_DATA_FLOW_STATE].reserved)
         {
@@ -622,13 +638,8 @@ static bool hos_putobject_sync(Aws::S3::Model::PutObjectRequest& request, size_t
             data_info->tx_failed_bytes[thread_id] += stream_len;
         }
 
-        return false;
+        return (int)Outcome.GetError().GetErrorType() + 1;
     }
-}
-
-void hos_init_log()
-{
-    MESA_handle_runtime_log_creation("./log");
 }
 
 hos_instance hos_get_instance()
@@ -648,11 +659,12 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
     hos_config_t *hos_conf = &g_hos_handle.hos_config;
     char hos_url[1024];
 
-    if (conf_path == NULL || thread_num == 0)
+    if (conf_path == NULL || thread_num == 0 || module == NULL || bucket == NULL)
     {
         g_hos_instance.result = false;
         g_hos_instance.error_code = HOS_PARAMETER_ERROR;
-        snprintf(g_hos_instance.error_message, HOS_ERROR_MESSAGE_SIZE, "param error:conf_path:%s, thread_num:%lu", conf_path, thread_num);
+        snprintf(g_hos_instance.error_message, HOS_ERROR_MESSAGE_SIZE,
+            "param error:conf_path:%s, module:%s, thread_num:%lu, bucket:%s", conf_path, module, thread_num, bucket);
         return &g_hos_instance;
     }
 
@@ -663,7 +675,6 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
     MESA_load_profile_string_def(conf_path, module, "hos_log_path", hos_conf->log_path, MAX_HOS_STRING_LEN, HOS_LOG_PATH);
     MESA_load_profile_uint_def(conf_path, module, "hos_log_level", &hos_conf->log_level, 30);
     MESA_load_profile_uint_def(conf_path, module, "hos_poolsize", &hos_conf->pool_thread_size, 0);
-    MESA_load_profile_uint_def(conf_path, module, "hos_thread_sum", &hos_conf->thread_num, 32);
     MESA_load_profile_uint_def(conf_path, module, "hos_cache_size", &hos_conf->cache_size, 102400);
     MESA_load_profile_uint_def(conf_path, module, "hos_cache_count", &hos_conf->cache_count, 10);
     MESA_load_profile_uint_def(conf_path, module, "hos_fd_live_time_ms", &hos_conf->timeout, 1000);
@@ -683,20 +694,19 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
         }
 
         snprintf(hos_url, sizeof(hos_url), "http://%s:%d/hos/", hos_conf->ip, hos_conf->port);
+        hos_conf->thread_num = thread_num;
         hos_client_create();
         if (g_hos_instance.result == true)
         {
             if(hos_verify_bucket(bucket) == false)
             {
-                g_hos_instance.result = false;
-                g_hos_instance.error_code = HOS_BUCKET_NOT_EXIST;
-                snprintf(g_hos_instance.error_message, HOS_ERROR_MESSAGE_SIZE, "runtime log create failed.");
                 MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "bucket:%s not exist.", bucket);
                 hos_shutdown_instance();
+                g_hos_instance.result = false;
+                g_hos_instance.error_code = HOS_BUCKET_NOT_EXIST;
+                snprintf(g_hos_instance.error_message, HOS_ERROR_MESSAGE_SIZE, "bucket:%s not exits.", bucket);
                 return &g_hos_instance;
             }
-            g_hos_instance.hos_url_prefix = (const char *)calloc(1, strlen(hos_url) + 1);
-            memcpy((void *)g_hos_instance.hos_url_prefix, hos_url, strlen(hos_url));
             MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "Instance init completed");
             if (hos_conf->fs2_ip && hos_conf->fs2_port)
             {
@@ -706,6 +716,10 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
             {
                 MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "hos fs2 function not starup");
             }
+            g_hos_instance.error_code = 0;
+            g_hos_instance.error_message[0]='\0';
+            g_hos_instance.hos_url_prefix = (const char *)calloc(1, strlen(hos_url) + 1);
+            memcpy((void *)g_hos_instance.hos_url_prefix, hos_url, strlen(hos_url));
         }
         return &g_hos_instance;
     }
@@ -815,10 +829,6 @@ static int hos_upload_stream(const char *bucket, const char *object, const char 
 
     //设置回调函数
     size_t fd = hash_get_min_free_fd(thread_id);
-    std::shared_ptr<Aws::Client::AsyncCallerContext> context = 
-        Aws::MakeShared<Aws::Client::AsyncCallerContext>("");
-    sprintf(buf, "%lu %lu", thread_id, fd);
-    context->SetUUID(buf);
     
     hos_fd_context_t info = {fd, 0, (char *)bucket, (char *)object, (void *)callback, userdata, NULL, 0, 0, 0 };
     add_fd_context(&g_fd_context[thread_id], &info);
@@ -832,25 +842,25 @@ static int hos_upload_stream(const char *bucket, const char *object, const char 
         ret = hos_putobject_sync(request, data_len, thread_id, fd, bucket, object);
     }
 
-    if (ret == true)
-    {
-        return HOS_CLIENT_OK;
-    }
-    else
-    {
-        return HOS_SEND_FAILED;
-    }
+    return ret;
 }
 
 int hos_upload_file(const char *bucket, const char *file_path, put_finished_callback callback, void *userdata, size_t thread_id)
 {
     struct stat buffer;
+    if (g_hos_instance.result == false || g_hos_handle.S3Client == NULL)
+    {
+        MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
+            "error:g_hos_instance.result:%d, g_hos_handle.S3CLient:%s",
+            g_hos_instance.result, (g_hos_handle.S3Client == NULL)?(NULL):("not null"));
+        return HOS_INSTANCE_NOT_INIT;
+    }
 
-    if ((g_hos_handle.S3Client == NULL) || (bucket == NULL) || (file_path == NULL) || (thread_id > g_hos_handle.hos_config.thread_num))
+    if ((bucket == NULL) || (file_path == NULL) || (thread_id > g_hos_handle.hos_config.thread_num))
     {
         MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, "hos_upload_file",
             "s3client:%s, bucket:%s, file_path:%s, thread_id:%d, thread_num:%d",
-            g_hos_handle.S3Client?"not null":"null", bucket, file_path, thread_id, g_hos_handle.hos_config.thread_num);
+            bucket, file_path, thread_id, g_hos_handle.hos_config.thread_num);
         return HOS_PARAMETER_ERROR;
     }
 
@@ -864,14 +874,20 @@ int hos_upload_file(const char *bucket, const char *file_path, put_finished_call
 
 int hos_upload_buf(const char *bucket, const char *object, const char *buf, size_t buf_len, put_finished_callback callback, void *userdata, size_t thread_id)
 {
-    if ((g_hos_handle.S3Client == NULL) || (bucket == NULL) || (object == NULL) 
-        || (buf == NULL) || (buf_len == 0)
+    if (g_hos_instance.result == false || g_hos_handle.S3Client == NULL)
+    {
+        MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
+            "error:g_hos_instance.result:%d, g_hos_handle.S3CLient:%s",
+            g_hos_instance.result, (g_hos_handle.S3Client == NULL)?(NULL):("not null"));
+        return HOS_INSTANCE_NOT_INIT;
+    }
+
+    if ((bucket == NULL) || (object == NULL) || (buf == NULL) || (buf_len == 0)
         || (thread_id > g_hos_handle.hos_config.thread_num))
     {
         MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, "hos_upload_buf",
-            "s3client:%s, bucket:%s, object:%s, buf:%s, buf_len:%d, thread_id:%d, thread_num:%d",
-            g_hos_handle.S3Client?"not null":"null", bucket, object,
-            buf?"not null":"null", buf_len, thread_id, g_hos_handle.hos_config.thread_num);
+            "bucket:%s, object:%s, buf:%s, buf_len:%d, thread_id:%d, thread_num:%d",
+            bucket, object, buf?"not null":"null", buf_len, thread_id, g_hos_handle.hos_config.thread_num);
         return HOS_PARAMETER_ERROR;
     }
     return hos_upload_stream(bucket, object, buf, buf_len, callback, userdata, thread_id);
@@ -922,11 +938,18 @@ static void *hos_fd_manage(void *ptr)
 
 int hos_open_fd(const char *bucket, const char *object, put_finished_callback callback, void *userdata, size_t thread_id, int mode)
 {
-    if ((g_hos_handle.S3Client == NULL) || (bucket == NULL) || (object == NULL) || (thread_id > g_hos_handle.hos_config.thread_num) || strlen(bucket) == 0 || strlen(object) == 0)
+    if (g_hos_instance.result == false || g_hos_handle.S3Client == NULL)
+    {
+        MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
+            "error:g_hos_instance.result:%d, g_hos_handle.S3CLient:%s",
+            g_hos_instance.result, (g_hos_handle.S3Client == NULL)?(NULL):("not null"));
+        return HOS_INSTANCE_NOT_INIT;
+    }
+    if ((bucket == NULL) || (object == NULL) || (thread_id > g_hos_handle.hos_config.thread_num) || strlen(bucket) == 0 || strlen(object) == 0)
     {
         MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, "hos_open_fd", 
-            "parameter error:s3client:%s, bucket:%s, obejct:%s, thread_id:%s",
-            g_hos_handle.S3Client, bucket, object, thread_id);
+            "bucket:%s, obejct:%s, thread_id:%s",
+            bucket, object, thread_id);
         return HOS_PARAMETER_ERROR;
     }
 
@@ -973,7 +996,15 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
     hos_func_thread_t *hos_func = &g_hos_handle.hos_func;
     size_t upload_len = 0;
 
-    if ((fd < 3) || (stream == NULL) || (thread_id > hos_conf->thread_num))
+    if (g_hos_instance.result == false || g_hos_handle.S3Client == NULL)
+    {
+        MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
+            "error:g_hos_instance.result:%d, g_hos_handle.S3CLient:%s",
+            g_hos_instance.result, (g_hos_handle.S3Client == NULL)?(NULL):("not null"));
+        return HOS_INSTANCE_NOT_INIT;
+    }
+
+    if ((fd < 3) || fd > MAX_HOS_CLIENT_FD_NUM || (stream == NULL) || (thread_id > hos_conf->thread_num))
     {
         MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, 
             "hos_write", "error: fd:%d, stream:%s, stream_len:%s, thread_id:%d.",
@@ -1085,23 +1116,14 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
     //恢复fd 的cache设置
     if (a_fd_context->mode & APPEND_MODE)
     {
-        a_fd_context->cache->seekg(0, std::ios_base::end);
-        data_info->cache[thread_id] += upload_len;
-        a_fd_context->cache->seekg(0, std::ios_base::beg);
+        data_info->cache[thread_id] -= upload_len;
         a_fd_context->cache.reset();
         a_fd_context->cache = NULL;
         a_fd_context->cache_rest = hos_conf->cache_size;
         a_fd_context->cache_count = hos_conf->cache_count;
     }
-    
-    if (ret == true)
-    {
-        return HOS_CLIENT_OK;
-    }
-    else
-    {
-        return HOS_SEND_FAILED;
-    }
+
+    return ret;
 }
 
 int hos_close_fd(size_t fd, size_t thread_id)
@@ -1111,7 +1133,15 @@ int hos_close_fd(size_t fd, size_t thread_id)
     hos_config_t *hos_conf = &g_hos_handle.hos_config;
     size_t upload_len = 0;
 
-    if (fd < 3 || thread_id > hos_conf->thread_num)
+    if (g_hos_instance.result == false || g_hos_handle.S3Client == NULL)
+    {
+        MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
+            "error:g_hos_instance.result:%d, g_hos_handle.S3CLient:%s",
+            g_hos_instance.result, (g_hos_handle.S3Client == NULL)?(NULL):("not null"));
+        return HOS_INSTANCE_NOT_INIT;
+    }
+
+    if (fd < 3 || fd > 65533 || thread_id > hos_conf->thread_num)
     {
         MESA_handle_runtime_log(g_hos_handle.log, RLOG_LV_FATAL, "hos_close_fd",
             "error:fd:%d, thread_id:%d, thread_sum:%d.",
@@ -1217,7 +1247,6 @@ int hos_shutdown_instance()
             {
                 if (i == 0)
                 {
-                #if 1
                     data_info_t * data_info = (data_info_t *)hos_func->fs2_info[i].reserved;
                     if (data_info->rx_pkts)
                         free(data_info->rx_pkts);
@@ -1233,16 +1262,6 @@ int hos_shutdown_instance()
                         free(data_info->tx_failed_pkts);
                     if (data_info->cache)
                         free(data_info->cache);
-                #else
-                    if (data_info->rx_pkts_last)
-                        free(data_info->rx_pkts_last);
-                    if (data_info->rx_bytes_last)
-                        free(data_info->rx_bytes_last);
-                    if (data_info->tx_pkts_last)
-                        free(data_info->tx_pkts_last);
-                    if (data_info->tx_bytes_last)
-                        free(data_info->tx_bytes_last);
-                #endif
                 }
                 free(hos_func->fs2_info[i].reserved);
                 hos_func->fs2_info[i].reserved = NULL;
@@ -1287,7 +1306,7 @@ int hos_shutdown_instance()
     memset(&g_hos_handle, 0 , sizeof(g_hos_handle));
     if (g_hos_instance.hos_url_prefix)
         free((void *)g_hos_instance.hos_url_prefix);
-    memset(&g_hos_instance, 0, sizeof(g_hos_handle));
+    memset(&g_hos_instance, 0, sizeof(g_hos_instance));
 
     return HOS_CLIENT_OK;
 }

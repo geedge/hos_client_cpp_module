@@ -4,7 +4,6 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -shared -fPIC -std=c++11")
 
 include_directories(${CMAKE_INSTALL_PREFIX}/include/MESA)
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
-set(CMKAE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -shared -fPIC")
 
 add_library(${lib_name}_shared SHARED hos_client.cpp hos_hash.cpp)
 target_link_libraries(${lib_name}_shared
@@ -14,6 +13,7 @@ target_link_libraries(${lib_name}_shared
     libaws-c-event-stream.a
     libaws-cpp-sdk-core.a 
     libaws-cpp-sdk-s3.a
+    libtesting-resources.a
     "-Wl,--no-whole-archive"
     libcurl.so
     libpthread.so

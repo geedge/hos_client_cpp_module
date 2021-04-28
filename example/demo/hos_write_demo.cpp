@@ -89,15 +89,11 @@ int main(int argc, char *argv[])
     
     buf = (char *)calloc(1, buffer.st_size +1);
 
-#if 0
     if (file_to_buffer(file_name, buf, buffer.st_size) == -1)
     {
         free(buf);
         return -1;
     }
-    #else
-    snprintf(buf, 1024, "this is a test");
-    #endif
 
     printf("hos_init_instance start ...\n");
     hos_instance = hos_get_instance();
