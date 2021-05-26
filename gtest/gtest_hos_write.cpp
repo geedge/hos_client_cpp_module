@@ -1,10 +1,62 @@
-#include <aws/external/gtest.h>
-#include "hos_client.h"
+#include <aws/s3/model/Bucket.h>
+#include "CheckHosClient.h"
 
 #define HOS_CONF "../conf/default.conf"
-#define HOS_BUCKET "hos_test_bucket"
+#define HOS_BUCKET "firewall_hos_bucket"
 #define HOS_BUFF "This a googleTest"
 #define HOS_FILE "../conf/default.conf"
+
+static void gtest_hos_handle_init(hos_client_handle_t *hos_handle)
+{
+    memset(hos_handle, 0, sizeof(hos_client_handle_t));
+    hos_handle->buckets.push_back(Aws::S3::Model::Bucket().WithName("session_record_hos_bucket"));
+    hos_handle->buckets.push_back(Aws::S3::Model::Bucket().WithName("firewall_hos_bucket"));
+    hos_handle->count = 1;
+    memcpy(hos_handle->hos_config.accesskeyid, "default", strlen("default")+1);
+    memcpy(hos_handle->hos_config.secretkey, "default", strlen("default")+1);
+    hos_handle->hos_config.cache_count = 10;
+    hos_handle->hos_config.cache_size = 102400;
+    hos_handle->hos_config.fs2_fmt = 0;
+    memcpy(hos_handle->hos_config.fs2_ip, "127.0.0.1", strlen("127.0.0.1")+1);
+    memcpy(hos_handle->hos_config.fs2_path, "./log/hos_fs2_log", strlen("./log/hos_fs2_log")+1);
+    hos_handle->hos_config.fs2_port = 10086;
+    memcpy(hos_handle->hos_config.ip, "127.0.0.1", strlen("127.0.0.1")+1);
+    hos_handle->hos_config.log_level = 30;
+    memcpy(hos_handle->hos_config.log_path, "./hoslog", strlen("./hoslog")+1);
+    hos_handle->hos_config.pool_thread_size = 10;
+    hos_handle->hos_config.port = 9098;
+    hos_handle->hos_config.thread_num = 1;
+    hos_handle->hos_config.timeout = 1000;
+    hos_handle->hos_func.fd_thread_status = 0;
+    hos_handle->hos_func.fs2_status = 1;
+}
+
+static void gtest_hos_instance_init(hos_instance instance)
+{
+    memset(instance, 0, sizeof(hos_instance_s));
+    instance->result = true;
+    instance->error_code = 0;
+    instance->error_message[0] ='\0';
+    instance->hos_url_prefix = "http://127.0.0.1:9098/hos/";
+}
+
+static void gtest_hos_fd_init(hos_fd_context_t *fd_info)
+{
+    memset(fd_info, 0, sizeof(hos_fd_context_t));
+    fd_info->bucket = (char *)HOS_BUCKET;
+    fd_info->object = (char *)"object";
+    fd_info->cache_count = 10;
+    fd_info->cache_rest = g_hos_handle.hos_config.cache_size;
+    fd_info->callback = NULL;
+    fd_info->fd = 3;
+    fd_info->fd_status = HOS_FD_REGISTER;
+    fd_info->mode = BUFF_MODE;
+    fd_info->overtime = 0;
+    fd_info->position = 0;
+    fd_info->recive_cnt = 0;
+    fd_info->timeout =  g_hos_handle.hos_config.timeout;
+    fd_info->userdata = NULL;
+}
 
 static void hos_callback(bool result, const char *bucket, const char *object, const char *error, void *userdata)
 {
@@ -14,6 +66,7 @@ static void hos_callback(bool result, const char *bucket, const char *object, co
     EXPECT_STREQ(object, (char *)userdata);
     EXPECT_STREQ(error, NULL);
 }
+
 static void hos_write_buff_cb(bool result, const char *bucket, const char *object, const char *error, void *userdata)
 {
     SUCCEED();
@@ -22,6 +75,7 @@ static void hos_write_buff_cb(bool result, const char *bucket, const char *objec
     EXPECT_STREQ(object, (char *)userdata);
     EXPECT_STREQ(error, NULL);
 }
+
 static void hos_write_append_cb(bool result, const char *bucket, const char *object, const char *error, void *userdata)
 {
     SUCCEED();
@@ -30,6 +84,7 @@ static void hos_write_append_cb(bool result, const char *bucket, const char *obj
     EXPECT_STREQ(object, (char *)userdata);
     EXPECT_STREQ(error, NULL);
 }
+
 static void hos_write_file_cb(bool result, const char *bucket, const char *object, const char *error, void *userdata)
 {
     SUCCEED();
@@ -38,6 +93,7 @@ static void hos_write_file_cb(bool result, const char *bucket, const char *objec
     EXPECT_STREQ(object, (char *)userdata);
     EXPECT_STREQ(error, NULL);
 }
+
 static void hos_bucket_not_exits_cb(bool result, const char *bucket, const char *object, const char *error, void *userdata)
 {
     SUCCEED();
@@ -49,369 +105,562 @@ static void hos_bucket_not_exits_cb(bool result, const char *bucket, const char 
 
 TEST(hos_write, normal)
 {
+    hos_instance_s expect_hos_instance;
+    hos_client_handle_t expect_hos_handle;
+    hos_fd_context_t expect_fd_info[3];
+
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 3, HOS_BUCKET);
-    EXPECT_EQ(hos_instance->result, true);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    gtest_hos_instance_init(&expect_hos_instance);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    gtest_hos_handle_init(&expect_hos_handle);
+    expect_hos_handle.hos_config.thread_num=3;
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+
     size_t fd = hos_open_fd(HOS_BUCKET, "object_buff", hos_write_buff_cb, (void *)"object_buff", 0, BUFF_MODE);
     EXPECT_EQ(fd, 3);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info[0]);
+    expect_fd_info[0].callback = (void *)hos_write_buff_cb;
+    expect_fd_info[0].object = (char *)"object_buff";
+    expect_fd_info[0].userdata = (void *)"object_buff";
+    CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info[0]);
+
     int ret = hos_write(fd, HOS_BUFF, strlen(HOS_BUFF), 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    expect_fd_info[0].fd_status = 2;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    //CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info[0]);
+    EXPECT_TRUE(g_fd_context[0][0].cache == NULL);
 
     size_t fd1 = hos_open_fd(HOS_BUCKET, "object_append", hos_write_append_cb, (void *)"object_append", 1, BUFF_MODE | APPEND_MODE);
     EXPECT_EQ(fd1, 3);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info[1]);
+    expect_fd_info[1].callback = (void *)hos_write_append_cb;
+    expect_fd_info[1].object = (char *)"object_append";
+    expect_fd_info[1].userdata = (void *)"object_append";
+    expect_fd_info[1].mode = BUFF_MODE | APPEND_MODE;
+    CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
 
-    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF), 0);
+    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF), 1);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
-    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF), 0);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    expect_fd_info[1].cache_rest -= strlen(HOS_BUFF);
+    expect_fd_info[1].cache_count--;
+    CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
+    EXPECT_TRUE(g_fd_context[1][0].cache != NULL); 
+
+    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF), 1);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    expect_fd_info[1].cache_rest -= strlen(HOS_BUFF);
+    expect_fd_info[1].cache_count--;
+    CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
+    EXPECT_TRUE(g_fd_context[1][0].cache != NULL); 
 
     size_t fd2 = hos_open_fd(HOS_BUCKET, "object_file", hos_write_file_cb, (void *)"object_file", 2, FILE_MODE);
     EXPECT_EQ(fd2, 3);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info[2]);
+    expect_fd_info[2].callback = (void *)hos_write_file_cb;
+    expect_fd_info[2].object = (char *)"object_file";
+    expect_fd_info[2].userdata = (void *)"object_file";
+    expect_fd_info[2].mode = FILE_MODE;
+    CheckStructGHosFdContext(g_fd_context[2], &expect_fd_info[2]);
+
     ret = hos_write(fd2, HOS_FILE, strlen(HOS_CONF), 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    expect_fd_info[2].fd_status = 2;
+    //CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
+    EXPECT_TRUE(g_fd_context[1][0].cache != NULL); 
 
     ret = hos_close_fd(fd, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     ret = hos_close_fd(fd1, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     ret = hos_close_fd(fd2, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, NULL);
+    expect_hos_instance.result = 0;
+    expect_hos_instance.hos_url_prefix = NULL;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+
+    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
+    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_write, bucket_not_exits)
 {
+    hos_instance_s expect_hos_instance;
+    hos_client_handle_t expect_hos_handle;
+    hos_fd_context_t expect_fd_info[3];
+
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 3, HOS_BUCKET);
-    EXPECT_EQ(hos_instance->result, true);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    gtest_hos_instance_init(&expect_hos_instance);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    gtest_hos_handle_init(&expect_hos_handle);
+    expect_hos_handle.hos_config.thread_num=3;
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    
     size_t fd = hos_open_fd("bucket_not_exits", "object_buff", hos_bucket_not_exits_cb, (void *)"object_buff", 0, BUFF_MODE);
     EXPECT_EQ(fd, 3);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info[0]);
+    expect_fd_info[0].callback = (void *)hos_bucket_not_exits_cb;
+    expect_fd_info[0].userdata = (void *)"object_buff";
+    expect_fd_info[0].bucket = (char *)"bucket_not_exits";
+    expect_fd_info[0].object = (char *)"object_buff";
+    CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info[0]);
+    
     int ret = hos_write(fd, HOS_BUFF, strlen(HOS_BUFF), 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    //expect_fd_info[0].cache_rest -= strlen(HOS_BUFF);
+    //expect_fd_info[0].cache_count--;
+    expect_fd_info[0].fd_status = 2;
+    //CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info[0]);
+    EXPECT_TRUE(g_fd_context[0][0].cache == NULL); 
 
     size_t fd1 = hos_open_fd("bucket_not_exits", "object_append", hos_bucket_not_exits_cb, (void *)"object_append", 1, BUFF_MODE | APPEND_MODE);
     EXPECT_EQ(fd1, 3);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info[1]);
+    expect_fd_info[1].callback = (void *) hos_bucket_not_exits_cb;
+    expect_fd_info[1].userdata = (void *)"object_append";
+    expect_fd_info[1].bucket = (char *)"bucket_not_exits";
+    expect_fd_info[1].object = (char *)"object_append";
+    expect_fd_info[1].mode = BUFF_MODE | APPEND_MODE;
+    CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
 
-    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF), 0);
+    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF), 1);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
-    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF), 0);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    expect_fd_info[1].cache_rest -= strlen(HOS_BUFF);
+    expect_fd_info[1].cache_count--;
+    CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
+    EXPECT_TRUE(g_fd_context[1][0].cache != NULL); 
+    
+    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF), 1);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    expect_fd_info[1].cache_rest -= strlen(HOS_BUFF);
+    expect_fd_info[1].cache_count--;
+    CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
+    EXPECT_TRUE(g_fd_context[1][0].cache != NULL); 
 
     size_t fd2 = hos_open_fd("bucket_not_exits", "object_file", hos_bucket_not_exits_cb, (void *)"object_file", 2, FILE_MODE);
     EXPECT_EQ(fd2, 3);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
-    ret = hos_write(fd2, HOS_FILE, strlen(HOS_CONF), 0);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info[2]);
+    expect_fd_info[2].callback = (void *) hos_bucket_not_exits_cb;
+    expect_fd_info[2].userdata = (void *)"object_file";
+    expect_fd_info[2].bucket = (char *)"bucket_not_exits";
+    expect_fd_info[2].object = (char *)"object_file";
+    expect_fd_info[2].mode = FILE_MODE;
+    CheckStructGHosFdContext(g_fd_context[2], &expect_fd_info[2]);
+    
+    ret = hos_write(fd2, HOS_FILE, strlen(HOS_CONF), 2);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    expect_fd_info[2].fd_status = 2;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    //CheckStructGHosFdContext(g_fd_context[2], &expect_fd_info[2]);
+    EXPECT_TRUE(g_fd_context[2][0].cache == NULL); 
 
     ret = hos_close_fd(fd, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     ret = hos_close_fd(fd1, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     ret = hos_close_fd(fd2, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, NULL);
+    expect_hos_instance.result = 0;
+    expect_hos_instance.hos_url_prefix = NULL;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+
+    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
+    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_write, sync_mode)
 {
+    hos_instance_s expect_hos_instance;
+    hos_client_handle_t expect_hos_handle;
+    hos_fd_context_t expect_fd_info[3];
+
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_sync_conf", 3, HOS_BUCKET);
-    EXPECT_EQ(hos_instance->result, true);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    gtest_hos_instance_init(&expect_hos_instance);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    gtest_hos_handle_init(&expect_hos_handle);
+    expect_hos_handle.hos_config.thread_num=3;
+    expect_hos_handle.hos_config.pool_thread_size = 0;
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+
     size_t fd = hos_open_fd(HOS_BUCKET, "object_buff", NULL, NULL, 0, BUFF_MODE);
     EXPECT_EQ(fd, 3);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info[0]);
+    expect_fd_info[0].object = (char *)"object_buff";
+    CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info[0]);
+    
     int ret = hos_write(fd, HOS_BUFF, strlen(HOS_BUFF), 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    //CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info[0]);
+    EXPECT_TRUE(g_fd_context[0][0].cache == NULL); 
 
     size_t fd1 = hos_open_fd(HOS_BUCKET, "object_append", NULL, NULL, 1, BUFF_MODE | APPEND_MODE);
     EXPECT_EQ(fd1, 3);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info[1]);
+    expect_fd_info[1].object = (char *)"object_append";
+    expect_fd_info[1].mode = BUFF_MODE | APPEND_MODE;
+    CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
 
-    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF), 0);
+    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF), 1);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
-    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF), 0);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    expect_fd_info[1].cache_count--;
+    expect_fd_info[1].cache_rest -= strlen(HOS_BUFF);
+    CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
+    EXPECT_TRUE(g_fd_context[1][0].cache != NULL); 
+
+    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF), 1);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    expect_fd_info[1].cache_count--;
+    expect_fd_info[1].cache_rest -= strlen(HOS_BUFF);
+    CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
+    EXPECT_TRUE(g_fd_context[1][0].cache != NULL); 
 
     size_t fd2 = hos_open_fd(HOS_BUCKET, "object_buff", NULL, NULL, 2, FILE_MODE);
     EXPECT_EQ(fd2, 3);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
-    ret = hos_write(fd2, HOS_FILE, strlen(HOS_BUFF), 0);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info[2]);
+    expect_fd_info[2].object = (char *)"object_buff";
+    expect_fd_info[2].mode = FILE_MODE;
+    CheckStructGHosFdContext(g_fd_context[2], &expect_fd_info[2]);
+    ret = hos_write(fd2, HOS_FILE, strlen(HOS_BUFF), 2);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    expect_fd_info[2].fd_status = 2;
+    //CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
+    EXPECT_TRUE(g_fd_context[2][0].cache == NULL); 
 
     ret = hos_close_fd(fd, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     ret = hos_close_fd(fd1, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     ret = hos_close_fd(fd2, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, NULL);
+    expect_hos_instance.result = 0;
+    expect_hos_instance.hos_url_prefix = NULL;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+
+    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
+    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_write, sync_mode_bucket_not_exits)
 {
+    hos_instance_s expect_hos_instance;
+    hos_client_handle_t expect_hos_handle;
+    hos_fd_context_t expect_fd_info[3];
+
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_sync_conf", 3, HOS_BUCKET);
-    EXPECT_EQ(hos_instance->result, true);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    gtest_hos_instance_init(&expect_hos_instance);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    gtest_hos_handle_init(&expect_hos_handle);
+    expect_hos_handle.hos_config.thread_num=3;
+    expect_hos_handle.hos_config.pool_thread_size = 0;
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    
     size_t fd = hos_open_fd(HOS_BUCKET, "object_buff", NULL, NULL, 0, BUFF_MODE);
     EXPECT_EQ(fd, 3);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info[0]);
+    expect_fd_info[0].object = (char *)"object_buff";
+    expect_fd_info[0].mode = BUFF_MODE;
+    CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info[0]);
+
     int ret = hos_write(fd, HOS_BUFF, strlen(HOS_CONF), 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    expect_fd_info[0].fd_status = 2;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    //CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info[0]);
+    EXPECT_TRUE(g_fd_context[0][0].cache == NULL); 
 
     size_t fd1 = hos_open_fd(HOS_BUCKET, "object_append", NULL, NULL, 1, BUFF_MODE | APPEND_MODE);
     EXPECT_EQ(fd1, 3);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info[1]);
+    expect_fd_info[1].object = (char *)"object_append";
+    expect_fd_info[1].mode = BUFF_MODE | APPEND_MODE;
+    CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
 
-    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_CONF), 0);
+    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF), 1);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
-    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_CONF), 0);
-    EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    expect_fd_info[1].cache_count--;
+    expect_fd_info[1].cache_rest -= strlen(HOS_BUFF);
+    CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
+    EXPECT_TRUE(g_fd_context[1][0].cache != NULL); 
 
-    size_t fd2 = hos_open_fd(HOS_BUCKET, "object_buff", NULL, NULL, 2, FILE_MODE);
+    ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF), 1);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    expect_fd_info[1].cache_count--;
+    expect_fd_info[1].cache_rest -= strlen(HOS_BUFF);
+    CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
+    EXPECT_TRUE(g_fd_context[1][0].cache != NULL); 
+
+    size_t fd2 = hos_open_fd(HOS_BUCKET, "object_file", NULL, NULL, 2, FILE_MODE);
     EXPECT_EQ(fd2, 3);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
-    ret = hos_write(fd2, HOS_FILE, strlen(HOS_CONF), 0);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info[2]);
+    expect_fd_info[2].object = (char *)"object_file";
+    expect_fd_info[2].mode = FILE_MODE;
+    CheckStructGHosFdContext(g_fd_context[2], &expect_fd_info[2]);
+    ret = hos_write(fd2, HOS_FILE, strlen(HOS_FILE), 2);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    expect_fd_info[2].fd_status = 2;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    //CheckStructGHosFdContext(g_fd_context[2], &expect_fd_info[2]);
+    EXPECT_TRUE(g_fd_context[2][0].cache == NULL); 
+
 
     ret = hos_close_fd(fd, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     ret = hos_close_fd(fd1, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     ret = hos_close_fd(fd2, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, NULL);
+    expect_hos_instance.result = 0;
+    expect_hos_instance.hos_url_prefix = NULL;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+
+    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
+    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_write, paramer_error)
 {
+    hos_instance_s expect_hos_instance;
+    hos_client_handle_t expect_hos_handle;
+    hos_fd_context_t expect_fd_info;
+
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2, HOS_BUCKET);
-    EXPECT_EQ(hos_instance->result, true);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
-    int fd = hos_open_fd(NULL, "object", hos_callback, NULL, 0, BUFF_MODE);
-    EXPECT_EQ(fd, HOS_PARAMETER_ERROR);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    gtest_hos_instance_init(&expect_hos_instance);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    gtest_hos_handle_init(&expect_hos_handle);
+    expect_hos_handle.hos_config.thread_num=2;
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    
+    int fd = hos_open_fd(HOS_BUCKET, "object_buff", hos_callback, NULL, 0, BUFF_MODE);
+    EXPECT_EQ(fd, 3);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info);
+    expect_fd_info.object = (char *)"object_buff";
+    expect_fd_info.callback = (void *)hos_callback;
+    expect_fd_info.mode = BUFF_MODE;
+    CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info);
+
     int ret = hos_write(0, HOS_BUFF, strlen(HOS_CONF), 0);
     EXPECT_EQ(ret, HOS_PARAMETER_ERROR);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    //CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info);
+
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, NULL);
+    expect_hos_instance.result = 0;
+    expect_hos_instance.hos_url_prefix = NULL;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+
+    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
+    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_write, fd_not_find)
 {
+    hos_instance_s expect_hos_instance;
+    hos_client_handle_t expect_hos_handle;
+    hos_fd_context_t expect_fd_info;
+
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2, HOS_BUCKET);
-    EXPECT_EQ(hos_instance->result, true);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    gtest_hos_instance_init(&expect_hos_instance);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    gtest_hos_handle_init(&expect_hos_handle);
+    expect_hos_handle.hos_config.thread_num=2;
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+
     int ret = hos_write(3, HOS_BUFF, strlen(HOS_CONF), 0);
     EXPECT_EQ(ret, HOS_HASH_NOT_FIND);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    CheckStructGHosFdContext(g_fd_context[0], NULL);
+    
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, NULL);
+    expect_hos_instance.result = 0;
+    expect_hos_instance.hos_url_prefix = NULL;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+
+    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
+    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_write, file_not_exit)
 {
+    hos_instance_s expect_hos_instance;
+    hos_client_handle_t expect_hos_handle;
+    hos_fd_context_t expect_fd_info;
+
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2, HOS_BUCKET);
-    EXPECT_EQ(hos_instance->result, true);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
-    int fd = hos_open_fd(HOS_CONF, "object", NULL, NULL, 0, FILE_MODE);
+    gtest_hos_instance_init(&expect_hos_instance);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    gtest_hos_handle_init(&expect_hos_handle);
+    expect_hos_handle.hos_config.thread_num=2;
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+
+    int fd = hos_open_fd(HOS_CONF, "object_file", NULL, NULL, 0, FILE_MODE);
     EXPECT_EQ(fd, 3);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
-    int ret = hos_write(3, "not_exit_file", strlen(HOS_CONF), 0);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info);
+    expect_fd_info.bucket = (char *)HOS_CONF;
+    expect_fd_info.object = (char *)"object_file";
+    expect_fd_info.mode = FILE_MODE;
+    CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info);
+
+    int ret = hos_write(fd, "not_exit_file", strlen(HOS_CONF), 0);
     EXPECT_EQ(ret, HOS_FILE_NOT_EXIST);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    //CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info);
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, NULL);
+    expect_hos_instance.result = 0;
+    expect_hos_instance.hos_url_prefix = NULL;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+
+    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
+    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_write, over_threadnums)
 {
+    hos_instance_s expect_hos_instance;
+    hos_client_handle_t expect_hos_handle;
+    hos_fd_context_t expect_fd_info;
+
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2, HOS_BUCKET);
-    EXPECT_EQ(hos_instance->result, true);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
-    int fd = hos_open_fd(HOS_CONF, "object", NULL, NULL, 0, BUFF_MODE);
+    gtest_hos_instance_init(&expect_hos_instance);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    gtest_hos_handle_init(&expect_hos_handle);
+    expect_hos_handle.hos_config.thread_num=2;
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+
+    int fd = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0, BUFF_MODE);
     EXPECT_EQ(fd, 3);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info);
+    expect_fd_info.object = (char *)"object";
+    CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info);
+    
     int ret = hos_write(3, HOS_BUFF, strlen(HOS_CONF), 6);
     EXPECT_EQ(ret, HOS_PARAMETER_ERROR);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    //CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info);
+
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, NULL);
+    expect_hos_instance.result = 0;
+    expect_hos_instance.hos_url_prefix = NULL;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+
+    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
+    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_write, not_init_instance)
@@ -429,6 +678,9 @@ static void *hos_function(void *ptr)
     int fd[HOS_FD_NUMS_LOCAL] = {0};
     char object[HOS_FD_NUMS_LOCAL][1024];
     int ret = 0;
+    hos_instance_s expect_hos_instance;
+    hos_client_handle_t expect_hos_handle;
+    hos_fd_context_t expect_fd_info[32][20];
 
     {
         hos_instance = hos_get_instance();
@@ -437,44 +689,57 @@ static void *hos_function(void *ptr)
             hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 32, HOS_BUCKET);
         }
     }
-    EXPECT_EQ(hos_instance->result, true);
-    EXPECT_EQ(hos_instance->error_code, HOS_CLIENT_OK);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    gtest_hos_instance_init(&expect_hos_instance);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    gtest_hos_handle_init(&expect_hos_handle);
+    expect_hos_handle.hos_config.thread_num=32;
+    expect_hos_handle.count = thread_id + 1;
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     for (i = 0; i < 20; i++)
     {
         snprintf(object[i], 1024, "object_%lu_%d", thread_id, i);
-        fd[i] = hos_open_fd(HOS_CONF, object[i], hos_callback, object[i], 0, BUFF_MODE | APPEND_MODE);
-        EXPECT_EQ(fd[i], i+3);
-        EXPECT_EQ(hos_instance->error_code, 0);
-        EXPECT_STREQ(hos_instance->error_message, "");
-        EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+        fd[i] = hos_open_fd(HOS_BUCKET, object[i], hos_callback, object[i], 0, BUFF_MODE | APPEND_MODE);
+        EXPECT_EQ(fd[i], i + 3);
+        CheckHosInstance(hos_instance, &expect_hos_instance);
+        CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+        gtest_hos_fd_init(&expect_fd_info[thread_id][i]);
+        expect_fd_info[thread_id][i].object = object[i];
+        expect_fd_info[thread_id][i].mode = BUFF_MODE | APPEND_MODE;
+        expect_fd_info[thread_id][i].callback = (void *)hos_callback;
+        CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info[thread_id][i]);
     }
 
     for (i = 0; i < 20; i++)
     {
         ret = hos_write(fd[i], HOS_BUFF, strlen(HOS_BUFF), i);
         EXPECT_EQ(ret, HOS_CLIENT_OK);
-        EXPECT_EQ(hos_instance->error_code, 0);
-        EXPECT_STREQ(hos_instance->error_message, "");
-        EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+        CheckHosInstance(hos_instance, &expect_hos_instance);
+        CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+        expect_fd_info[thread_id][i].cache_rest -= strlen(HOS_BUFF);
+        expect_fd_info[thread_id][i].cache_count--;
+        CheckStructGHosFdContext(&g_fd_context[thread_id][i], &expect_fd_info[thread_id][i]);
+        EXPECT_TRUE(g_fd_context[1][0].cache != NULL);
     }
 
     for (i = 0; i < 20; i++)
     {
         ret = hos_close_fd(fd[i], i);
         EXPECT_EQ(ret, 0);
-        EXPECT_EQ(hos_instance->error_code, 0);
-        EXPECT_STREQ(hos_instance->error_message, "");
-        EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+        CheckHosInstance(hos_instance, &expect_hos_instance);
+        CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     }
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, 0);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, NULL);
+    expect_hos_instance.result = 0;
+    expect_hos_instance.hos_url_prefix = NULL;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+
+    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
+    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 
     pthread_exit(NULL);
 #undef HOS_FD_NUMS_LOCAL

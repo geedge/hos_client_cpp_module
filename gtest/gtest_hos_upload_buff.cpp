@@ -1,9 +1,43 @@
-#include <aws/external/gtest.h>
-#include "hos_client.h"
+#include <aws/s3/model/Bucket.h>
+#include "CheckHosClient.h"
 
 #define HOS_CONF "../conf/default.conf"
-#define HOS_BUCKET "hos_test_bucket"
+#define HOS_BUCKET "firewall_hos_bucket"
 #define HOS_BUFF "This is a googletest"
+
+static void gtest_hos_handle_init(hos_client_handle_t *hos_handle)
+{
+    memset(hos_handle, 0, sizeof(hos_client_handle_t));
+    hos_handle->buckets.push_back(Aws::S3::Model::Bucket().WithName("session_record_hos_bucket"));
+    hos_handle->buckets.push_back(Aws::S3::Model::Bucket().WithName("firewall_hos_bucket"));
+    hos_handle->count = 1;
+    memcpy(hos_handle->hos_config.accesskeyid, "default", strlen("default")+1);
+    memcpy(hos_handle->hos_config.secretkey, "default", strlen("default")+1);
+    hos_handle->hos_config.cache_count = 10;
+    hos_handle->hos_config.cache_size = 102400;
+    hos_handle->hos_config.fs2_fmt = 0;
+    memcpy(hos_handle->hos_config.fs2_ip, "127.0.0.1", strlen("127.0.0.1")+1);
+    memcpy(hos_handle->hos_config.fs2_path, "./log/hos_fs2_log", strlen("./log/hos_fs2_log")+1);
+    hos_handle->hos_config.fs2_port = 10086;
+    memcpy(hos_handle->hos_config.ip, "127.0.0.1", strlen("127.0.0.1")+1);
+    hos_handle->hos_config.log_level = 30;
+    memcpy(hos_handle->hos_config.log_path, "./hoslog", strlen("./hoslog")+1);
+    hos_handle->hos_config.pool_thread_size = 10;
+    hos_handle->hos_config.port = 9098;
+    hos_handle->hos_config.thread_num = 1;
+    hos_handle->hos_config.timeout = 1000;
+    hos_handle->hos_func.fd_thread_status = 0;
+    hos_handle->hos_func.fs2_status = 1;
+}
+
+static void gtest_hos_instance_init(hos_instance instance)
+{
+    memset(instance, 0, sizeof(hos_instance_s));
+    instance->result = true;
+    instance->error_code = 0;
+    instance->error_message[0] ='\0';
+    instance->hos_url_prefix = "http://127.0.0.1:9098/hos/";
+}
 
 static void hos_callback(bool result, const char *bucket, const char *object, const char *error, void *userdata)
 {
@@ -25,59 +59,92 @@ static void hos_bucket_not_exits_cb(bool result, const char *bucket, const char 
 
 TEST(hos_upload_buff, normal)
 {
+    hos_instance_s expect_hos_instance;
+    hos_client_handle_t expect_hos_handle;
+    hos_fd_context_t expect_fd_info;
+
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2, HOS_BUCKET);
-    EXPECT_EQ(hos_instance->result, true);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    gtest_hos_instance_init(&expect_hos_instance);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    gtest_hos_handle_init(&expect_hos_handle);
+    expect_hos_handle.hos_config.thread_num=2;
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+
     int ret  = hos_upload_buf(HOS_BUCKET, "object", HOS_BUFF, strlen(HOS_BUFF), hos_callback, (void *)"object", 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, NULL);
+    expect_hos_instance.result = 0;
+    expect_hos_instance.hos_url_prefix = NULL;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+
+    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
+    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_upload_buff, bucket_not_exits)
 {
+    hos_instance_s expect_hos_instance;
+    hos_client_handle_t expect_hos_handle;
+    hos_fd_context_t expect_fd_info;
+
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2, HOS_BUCKET);
-    EXPECT_EQ(hos_instance->result, true);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    gtest_hos_instance_init(&expect_hos_instance);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    gtest_hos_handle_init(&expect_hos_handle);
+    expect_hos_handle.hos_config.thread_num=2;
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+
     int ret  = hos_upload_buf("bucket_not_exits", "object", HOS_BUFF, strlen(HOS_BUFF), hos_bucket_not_exits_cb, (void *)"object", 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, NULL);
+    expect_hos_instance.result = 0;
+    expect_hos_instance.hos_url_prefix = NULL;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+
+    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
+    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_upload_buff, param_error)
 {
+    hos_instance_s expect_hos_instance;
+    hos_client_handle_t expect_hos_handle;
+    hos_fd_context_t expect_fd_info;
+
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2, HOS_BUCKET);
-    EXPECT_EQ(hos_instance->result, true);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    gtest_hos_instance_init(&expect_hos_instance);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    gtest_hos_handle_init(&expect_hos_handle);
+    expect_hos_handle.hos_config.thread_num=2;
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+
     int ret  = hos_upload_buf(NULL, "object", HOS_BUFF, strlen(HOS_BUFF), hos_callback, (void *)"object", 0);
     EXPECT_EQ(ret, HOS_PARAMETER_ERROR);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, "http://192.168.44.12:9098/hos/");
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    EXPECT_EQ(hos_instance->error_code, 0);
-    EXPECT_STREQ(hos_instance->error_message, "");
-    EXPECT_STREQ(hos_instance->hos_url_prefix, NULL);
+    expect_hos_instance.result = 0;
+    expect_hos_instance.hos_url_prefix = NULL;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+
+    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
+    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_upload_buff, not_init_instance)

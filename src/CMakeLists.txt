@@ -5,7 +5,24 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -shared -fPIC -std=c++11")
 include_directories(${CMAKE_INSTALL_PREFIX}/include/MESA)
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
-add_library(${lib_name}_shared SHARED hos_client.cpp hos_hash.cpp)
+option(HOS_MOCK "If enabled, the SDK will be built using a MOCK .cpp file for S3." OFF)
+
+file(GLOB HOS_HEADERS "*.h")
+file(GLOB HOS_SOURCE "*.cpp")
+if (HOS_MOCK)
+    add_definitions(-DHOS_MOCK)
+    file(GLOB HOS_MOCK_HEADERS "mock/hos_mock.h")
+    file(GLOB HOS_MOCK_SOURCE "mock/hos_mock.cpp")
+endif()
+
+file(GLOB HOS_SRC
+    ${HOS_SOURCE}
+    ${HOS_HEADERS}
+    ${HOS_MOCK_SOURCE}
+    ${HOS_MOCK_HEADERS}
+)
+
+add_library(${lib_name}_shared SHARED ${HOS_SRC})
 target_link_libraries(${lib_name}_shared
     "-Wl,--whole-archive"
     libaws-c-common.a
