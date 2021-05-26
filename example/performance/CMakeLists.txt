@@ -27,5 +27,5 @@ endif()
 # end of for ASAN
 
 add_executable(HosClientPerformance HosClientPerformance.cpp)
-target_link_libraries(HosClientPerformance hos-client-cpp)
+target_link_libraries(HosClientPerformance hos-client-cpp MESA_handle_logger)
 

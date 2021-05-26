@@ -6,6 +6,7 @@ include_directories(${CMAKE_INSTALL_PREFIX}/include/MESA)
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
 option(HOS_MOCK "If enabled, the SDK will be built using a MOCK .cpp file for S3." OFF)
+option(HOS_MESA_LOG "If enabled, the SDK will be built using a MOCK .cpp file for S3." ON)
 
 file(GLOB HOS_HEADERS "*.h")
 file(GLOB HOS_SOURCE "*.cpp")
@@ -13,6 +14,10 @@ if (HOS_MOCK)
     add_definitions(-DHOS_MOCK)
     file(GLOB HOS_MOCK_HEADERS "mock/hos_mock.h")
     file(GLOB HOS_MOCK_SOURCE "mock/hos_mock.cpp")
+endif()
+
+if (HOS_MESA_LOG)
+    add_definitions(-DHOS_MESA_LOG)
 endif()
 
 file(GLOB HOS_SRC

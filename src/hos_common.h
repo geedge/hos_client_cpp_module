@@ -97,6 +97,7 @@ typedef struct hos_client_handle_s
     hos_config_t hos_config;
     hos_func_thread_t hos_func;
     void *log;
+    size_t *task_num;
 }hos_client_handle_t;
 
 extern struct hos_instance_s g_hos_instance;

@@ -19,11 +19,52 @@ void CheckStructHosConfigT(hos_config_t *actual, hos_config_t *expect)
     EXPECT_EQ(actual->timeout, expect->timeout);
 }
 
-void CheckStructHosFunc(hos_func_thread_t *actual, hos_func_thread_t *expect)
+void CheckStructFs2DataInfo(data_info_t *actual, data_info_t *expect, int thread_num)
+{
+    int i = 0;
+    
+    for (i = 0; i < thread_num; i++)
+    {
+        if (actual->cache)
+        {
+            EXPECT_EQ(actual->cache[i], expect->cache[i]);
+        }
+        if (actual->rx_bytes)
+        {
+            EXPECT_EQ(actual->rx_bytes[i], expect->rx_bytes[i]);
+        }
+        if (actual->rx_pkts)
+        {
+            EXPECT_EQ(actual->rx_pkts[i], expect->rx_pkts[i]);
+        }
+        if (actual->tx_bytes)
+        {
+        EXPECT_EQ(actual->tx_bytes[i], expect->tx_bytes[i]);
+        }
+        if (actual->tx_pkts)
+        {
+            EXPECT_EQ(actual->tx_pkts[i], expect->tx_pkts[i]);
+        }
+        if (actual->tx_failed_bytes)
+        {
+            EXPECT_EQ(actual->tx_failed_bytes[i], expect->tx_failed_bytes[i]);
+        }
+        if (actual->tx_failed_pkts)
+        {
+            EXPECT_EQ(actual->tx_failed_pkts[i], expect->tx_failed_pkts[i]);
+        }
+    }
+}
+
+void CheckStructHosFunc(hos_func_thread_t *actual, hos_func_thread_t *expect, int thread_num)
 {
     //EXPECT_EQ(actual->fd_thread, expect->fd_thread);
     EXPECT_EQ(actual->fd_thread_status, expect->fd_thread_status);
-    //CheckStructFs2Info(actual->fs2_info, expect->fs2_info);
+    if (actual->fs2_info[0].reserved != NULL)
+    {
+        CheckStructFs2DataInfo((data_info_t *)actual->fs2_info[0].reserved,
+            (data_info_t *)expect->fs2_info[0].reserved, thread_num);
+    }
     EXPECT_EQ(actual->fs2_status, expect->fs2_status);
     //EXPECT_EQ(actual->fs2_thread, expect->fs2_thread);
 }
@@ -40,7 +81,7 @@ void CheckStructGHosHandle(hos_client_handle_t *actual, hos_client_handle_t *exp
     //EXPECT_TRUE(actual->log != NULL);
     //EXPECT_TRUE(actual->S3Client != NULL);
     CheckStructHosConfigT(&actual->hos_config, &expect->hos_config);
-    CheckStructHosFunc(&actual->hos_func, &expect->hos_func);
+    CheckStructHosFunc(&actual->hos_func, &expect->hos_func, actual->hos_config.thread_num);
 }
 
 void CheckStructGHosFdContext(hos_fd_context_t *actual, hos_fd_context_t *expect)
