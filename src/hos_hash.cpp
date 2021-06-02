@@ -13,18 +13,30 @@ void add_hos_info(hos_info_t **handle, hos_info_t *input)
     {
         value = (hos_info_t *)malloc(sizeof(hos_info_t));
         memcpy(value, input, sizeof(hos_info_t));
-        value->object = (char *)malloc(strlen(input->object) + 1);
-        value->bucket = (char *)malloc(strlen(input->bucket) + 1);
-        memcpy(value->bucket, input->bucket, strlen(input->bucket) + 1);
-        memcpy(value->object, input->object, strlen(input->object) + 1);
+        value->object = (char *)calloc(1, strlen(input->object) + 1);
+        value->bucket = (char *)calloc(1, strlen(input->bucket) + 1);
+        memcpy(value->bucket, input->bucket, strlen(input->bucket));
+        memcpy(value->object, input->object, strlen(input->object));
         HASH_ADD_INT(*handle, fd, value);
     }
     else
     {
         value->mode = input->mode;
         value->handle = input->handle;
-        memcpy(value->bucket, input->bucket, strlen(input->bucket) + 1);
-        memcpy(value->object, input->object, strlen(input->object) + 1);
+        if (value->object != NULL)
+        {
+            free(value->object);
+            value->object = NULL;
+        }
+        if (value->bucket != NULL)
+        {
+            free(value->bucket);
+            value->bucket = NULL;
+        }
+        value->object = (char *)calloc(1, strlen(input->object) + 1);
+        value->bucket = (char *)calloc(1, strlen(input->bucket) + 1);
+        memcpy(value->bucket, input->bucket, strlen(input->bucket));
+        memcpy(value->object, input->object, strlen(input->object));
         value->callback = input->callback;
         value->userdata = input->userdata;
         value->cache = input->cache;
@@ -55,10 +67,12 @@ void delete_info_by_fd(hos_info_t **handle, size_t fd)
         if (value->bucket)
         {
             free(value->bucket);
+            value->bucket = NULL;
         }
         if (value->object)
         {
             free(value->object);
+            value->object = NULL;
         }
         HASH_DEL(*handle, value);
         free(value);
@@ -73,10 +87,12 @@ void delete_all(hos_info_t **handle)
         if (current->bucket)
         {
             free(current->bucket);
+            current->bucket = NULL;
         }
         if (current->object)
         {
             free(current->object);
+            current->object = NULL;
         }
         HASH_DEL(*handle, current);
         free(current);

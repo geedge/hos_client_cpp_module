@@ -69,8 +69,7 @@ typedef struct userdata_s
 
 static size_t  calc_time(struct timespec start, struct timespec end)
 {
-    return (end.tv_sec * 1000 * 1000 * 1000 + end.tv_nsec - 
-        (start.tv_sec * 1000 * 1000 * 1000 + start.tv_nsec));
+    return (end.tv_sec - start.tv_sec) * 1000 * 1000 * 1000 + end.tv_nsec - start.tv_nsec; 
 }
 
 int read_file_list(const char *path, char file_name[][256])
@@ -216,7 +215,7 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
 {
     int i = 0;
     int j = 0;
-    size_t fd = 0;
+    size_t fd[1000] = {0};
     size_t tmp = 0;
     size_t rest = 0;
     struct timespec tstart, ttmp;
@@ -230,11 +229,11 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
     int drop = 0;
     double variance = 0.00;
     double average = 0.00;
-    long record[1000] = {0};
+    long record[30000] = {0};
 
     if (conf->slice)
     {
-        fd = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
+        fd[0] = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
         for (i = 0; i < test_times; i++)
         {
             j = 0;
@@ -245,10 +244,10 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
                 rest = buff_len - tmp;
                 if (rest < conf->slice)
                 {
-                    hos_write(fd, &buff[tmp], rest, thread_info->thread_num);
+                    hos_write(fd[0], &buff[tmp], rest, thread_info->thread_num);
                     break;
                 }
-                hos_write(fd, &buff[tmp], conf->slice, thread_info->thread_num);
+                hos_write(fd[0], &buff[tmp], conf->slice, thread_info->thread_num);
                 j++;
             }
             clock_gettime(CLOCK_MONOTONIC, &ttmp);
@@ -272,7 +271,7 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
 
         if (conf->mode & APPEND_MODE)
         {
-            fd = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
+            fd[0] = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
 #if 1
             for (i = 0; i < test_times; i++)
             {
@@ -285,10 +284,10 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
                     rest = buff_len - tmp;
                     if (rest < conf->append_size)
                     {
-                        hos_write(fd, &buff[tmp], rest, thread_info->thread_num);
+                        hos_write(fd[0], &buff[tmp], rest, thread_info->thread_num);
                         break;
                     }
-                    hos_write(fd, &buff[tmp], conf->append_size, thread_info->thread_num);
+                    hos_write(fd[0], &buff[tmp], conf->append_size, thread_info->thread_num);
                     j++;
                 }
 #if 1
@@ -315,14 +314,14 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
             for (i = 0; i < test_times; i++)
             {
                 clock_gettime(CLOCK_MONOTONIC, &tstart);
-                fd = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
-                ret = hos_write(fd, buff, buff_len, thread_info->thread_num);
+                fd[i] = hos_open_fd(thread_info->handle, conf->bucket, conf->object, callback, NULL, thread_info->thread_num, conf->mode);
+                ret = hos_write(fd[i], buff, buff_len, thread_info->thread_num);
                 if (ret == HOS_CLIENT_OK)
                 {
                     success_cnt++;
                 }else
                 {
-                    printf("error code:%d, thread_id:%d\n", ret, thread_info->thread_num);
+                    //printf("error code:%d, thread_id:%d\n", ret, thread_info->thread_num);
                     //break;
                 }
                 clock_gettime(CLOCK_MONOTONIC, &ttmp);
@@ -348,7 +347,13 @@ static int upload_buff(char * buff, int buff_len, int test_times, thread_info_t 
         }
     }
 
-    hos_close_fd(fd, thread_info->thread_num);
+    for (i = 0; i < test_times; i++)
+    {
+        if (fd[i] > 2)
+        {
+            hos_close_fd(fd[i], thread_info->thread_num);
+        }
+    }
 
     return 0;
 }
@@ -365,7 +370,7 @@ static void *put_object_thread(void *ptr)
     char *buff = NULL;
     char file_name[100][256];
     struct stat s_buf;
-    int test_times = 100;
+    int test_times = 1000;
 
     buff = (char *)malloc(30 * 1024 * 1024);
     if (buff == NULL)

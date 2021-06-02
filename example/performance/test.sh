@@ -10,7 +10,7 @@ size=(1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28
 
 num=0
 
-while((${num} < 37))
+while((${num} < 100))
 do
     #./HosClientPerformance -a ${size[$num]}
     #echo "./HosClientPerformance -a ${size[$num]} -A -f ./file/100k.data"
@@ -19,7 +19,9 @@ do
     #./HosClientPerformance -f ./file/${size[$num]}.data -F
     #echo ./HosClientPerformance -a 100 -A -f ./file/100k.data -t ${size[$num]} -S 1024
     #./HosClientPerformance -a 100 -A -f ./file/100k.data -t ${size[$num]} -S 1024
-    echo ./HosClientPerformance -a 100 -A -f ./file/100k.data -S ${size[$num]} -t 32
-    ./HosClientPerformance -a 100 -A -f ./file/100k.data -S ${size[$num]} -t 32
+    #echo ./HosClientPerformance -a 100 -A -f ./file/100k.data -S ${size[$num]} -t 32
+    #./HosClientPerformance -a 100 -A -f ./file/100k.data -S ${size[$num]} -t 32
+    echo ./HosClientPerformance -P1 -t32
+    ./HosClientPerformance -P1 -t32
     let "num++"
 done

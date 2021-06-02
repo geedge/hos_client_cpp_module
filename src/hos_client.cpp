@@ -221,6 +221,7 @@ void hos_set_thread_sum(hos_client_handle client, size_t thread_sum)
     if (fd_info)
     {
         fd_info = (size_t (*) [MAX_HOS_CLIENT_FD_NUM + 1])realloc(fd_info, thread_sum * sizeof(size_t [MAX_HOS_CLIENT_FD_NUM + 1]));
+        memset(&fd_info[client->thread_sum], 0, (thread_sum - client->thread_sum) * sizeof(size_t [MAX_HOS_CLIENT_FD_NUM + 1]));
     }else
     {
         fd_info = (size_t (*) [MAX_HOS_CLIENT_FD_NUM + 1])calloc(thread_sum, sizeof(size_t [MAX_HOS_CLIENT_FD_NUM + 1]));
@@ -743,7 +744,7 @@ static void *hos_fd_manage(void *ptr)
 
 int hos_open_fd(hos_client_handle handle, const char *bucket, const char *object, put_finished_callback callback, void *userdata, size_t thread_id, int mode)
 {
-    if ((handle == NULL) || (bucket == NULL) || (object == NULL) || (thread_id > handle->thread_sum))
+    if ((handle == NULL) || (bucket == NULL) || (object == NULL) || (thread_id > handle->thread_sum) || strlen(bucket) == 0 || strlen(object) == 0)
     {
         return HOS_PARAMETER_ERROR;
     }
@@ -760,6 +761,7 @@ int hos_open_fd(hos_client_handle handle, const char *bucket, const char *object
 #if 1
     if (handle->fd_thread == 0)
     {
+        std::lock_guard<std::mutex> locker(m_client_lock);
         handle->fd_thread_status = 0;
         pthread_create(&handle->fd_thread, NULL, hos_fd_manage, handle);
     }

@@ -15,7 +15,7 @@ extern "C"
 
 //#define test_times 10000
 
-#define debuginfo (void)
+#define debuginfo printf
 
 typedef struct userdata_s
 {
@@ -59,7 +59,7 @@ void callback(bool result, const char *error, const char *bucket, const char *ob
 
 int main(int argc, char *argv[])
 {
-    if (argc != 4)
+    if (argc != 3)
     {
         debuginfo("usege: singThread [bucket name] [object name]\n");
         return -1;
@@ -69,7 +69,6 @@ int main(int argc, char *argv[])
     int i = 0;
     char *bucket = argv[1];
     char *object = argv[2];
-    int test_times = atoi(argv[3]);
     char *buf = (char *)malloc(1024 * 1024 * 40);
     size_t buf_size;
     int mode = FILE_MODE;
@@ -79,7 +78,7 @@ int main(int argc, char *argv[])
     file_to_buffer(object, buf, &buf_size);
 
     debuginfo("hos_client_init start ...\n");
-    hos_client_handle handle = hos_client_create("192.168.40.223", 9098, "default", "default", 400);
+    hos_client_handle handle = hos_client_create("192.168.44.12", 9098, "default", "default", 100);
     //hos_client_handle handle = hos_client_create("http://192.168.32.10:9098/hos/", "default", "default", 4);
     if (handle == NULL) 
     {
@@ -108,14 +107,10 @@ int main(int argc, char *argv[])
     mode = FILE_MODE;
     debuginfo("hos_upload_file start ...\n");
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (i = 0; i < test_times; i++)
-    {
-        fd[i] = hos_open_fd(handle, bucket, object, callback, (void *)&data, 0, mode);
-        hos_write(fd[i], object, 0, 0);
-    }
+    fd[0] = hos_open_fd(handle, bucket, object, callback, (void *)&data, 0, mode);
+    hos_write(fd[0], object, 0, 0);
     clock_gettime(CLOCK_MONOTONIC, &end);
     time = calc_time(start, end);
-    time /= test_times;
     printf("hos_upload_file spent %llu ns\n", time);
     debuginfo("hos_upload_file end ...\n");
 #else
@@ -151,7 +146,6 @@ int main(int argc, char *argv[])
         //printf("start:%lu\n", start.tv_sec * 1000 * 1000 * 1000 + start.tv_nsec);
         //printf("finished:%lu\n", finished.tv_sec * 1000 * 1000 * 1000 + finished.tv_nsec);
         time = calc_time(start, finished);
-        time /= test_times;
         printf("hos upload finished spent %llu ns\n", time);
     }
 
