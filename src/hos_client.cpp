@@ -759,11 +759,13 @@ int hos_open_fd(hos_client_handle handle, const char *bucket, const char *object
         NULL,/*cache*/ handle->cache_count, 0,/*position*/ 0,/*recive_cnt*/(long)handle->cache_size,/*cache_rest*/ HOS_FD_REGISTER,/*fd_status*/ 0,/*overtime*/ handle->timeout,};
     add_hos_info(&hash_hos_info[thread_id], &info);
 #if 1
-    if (handle->fd_thread == 0)
     {
         std::lock_guard<std::mutex> locker(m_client_lock);
-        handle->fd_thread_status = 0;
-        pthread_create(&handle->fd_thread, NULL, hos_fd_manage, handle);
+        if (handle->fd_thread == 0)
+        {
+            handle->fd_thread_status = 0;
+            pthread_create(&handle->fd_thread, NULL, hos_fd_manage, handle);
+        }
     }
 #endif
     return fd;
