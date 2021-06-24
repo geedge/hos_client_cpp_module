@@ -29,7 +29,8 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
     hos_handle->hos_config.pool_thread_size = 10;
     hos_handle->hos_config.port = 9098;
     hos_handle->hos_config.thread_num = thread_num;
-    hos_handle->hos_config.timeout = 1000;
+    hos_handle->hos_config.max_request_num = 100;
+    hos_handle->hos_config.max_request_context = 10240000;
     hos_handle->hos_func.fd_thread_status = 0;
     hos_handle->hos_func.fs2_status = 1;
 
@@ -89,7 +90,7 @@ TEST(hos_shutdown_instance, normal)
 TEST(hos_shutdown_instance, no_init)
 {
     int ret = hos_shutdown_instance();
-    EXPECT_EQ(ret, HOS_CLIENT_OK);
+    EXPECT_EQ(ret, HOS_INSTANCE_NOT_INIT);
 }
 
 TEST(hos_shutdown_instance, shutdown_more)
@@ -124,7 +125,7 @@ TEST(hos_shutdown_instance, shutdown_more)
     EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 
     ret = hos_shutdown_instance();
-    EXPECT_EQ(ret, HOS_CLIENT_OK);
+    EXPECT_EQ(ret, HOS_INSTANCE_NOT_INIT);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     EXPECT_EQ((void *)g_fd_context, (void *)NULL);

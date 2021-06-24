@@ -16,7 +16,8 @@ void CheckStructHosConfigT(hos_config_t *actual, hos_config_t *expect)
     EXPECT_STREQ(actual->ip, expect->ip);
     EXPECT_EQ(actual->port, expect->port);
     EXPECT_EQ(actual->thread_num, expect->thread_num);
-    EXPECT_EQ(actual->timeout, expect->timeout);
+    EXPECT_EQ(actual->max_request_context, expect->max_request_context);
+    EXPECT_EQ(actual->max_request_num, expect->max_request_num);
 }
 
 void CheckStructFs2DataInfo(data_info_t *actual, data_info_t *expect, int thread_num)
@@ -101,10 +102,8 @@ void CheckStructGHosFdContext(hos_fd_context_t *actual, hos_fd_context_t *expect
         EXPECT_EQ(actual->fd_status, expect->fd_status);
         EXPECT_EQ(actual->mode, expect->mode);
         EXPECT_STREQ(actual->object, expect->object);
-        EXPECT_EQ(actual->overtime, expect->overtime);
         EXPECT_EQ(actual->position, expect->position);
         EXPECT_EQ(actual->recive_cnt, expect->recive_cnt);
-        EXPECT_EQ(actual->timeout, expect->timeout);
         EXPECT_EQ(actual->userdata, expect->userdata);
     }
 }

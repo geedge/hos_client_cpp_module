@@ -25,7 +25,8 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
     hos_handle->hos_config.pool_thread_size = 10;
     hos_handle->hos_config.port = 9098;
     hos_handle->hos_config.thread_num = thread_num;
-    hos_handle->hos_config.timeout = 1000;
+    hos_handle->hos_config.max_request_num = 100;
+    hos_handle->hos_config.max_request_context = 10240000;
     hos_handle->hos_func.fd_thread_status = 0;
     hos_handle->hos_func.fs2_status = 1;
 

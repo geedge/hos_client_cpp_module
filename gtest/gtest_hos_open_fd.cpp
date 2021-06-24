@@ -24,7 +24,8 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
     hos_handle->hos_config.pool_thread_size = 10;
     hos_handle->hos_config.port = 9098;
     hos_handle->hos_config.thread_num = thread_num;
-    hos_handle->hos_config.timeout = 1000;
+    hos_handle->hos_config.max_request_num = 100;
+    hos_handle->hos_config.max_request_context = 10240000;
     hos_handle->hos_func.fd_thread_status = 0;
     hos_handle->hos_func.fs2_status = 1;
 
@@ -56,13 +57,11 @@ static void gtest_hos_fd_init(hos_fd_context_t *fd_info)
     fd_info->cache_count = 10;
     fd_info->cache_rest = g_hos_handle.hos_config.cache_size;
     fd_info->callback = NULL;
-    fd_info->fd = 3;
+    fd_info->fd = 1;
     fd_info->fd_status = HOS_FD_REGISTER;
     fd_info->mode = BUFF_MODE;
-    fd_info->overtime = 0;
     fd_info->position = 0;
     fd_info->recive_cnt = 0;
-    fd_info->timeout =  g_hos_handle.hos_config.timeout;
     fd_info->userdata = NULL;
 }
 
@@ -79,14 +78,14 @@ TEST(hos_open_fd, normal)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     size_t fd = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0, BUFF_MODE);
-    EXPECT_EQ(fd, 3);
+    EXPECT_EQ(fd, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[0]);
     CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info[0]);
     
     size_t fd1 = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 1, BUFF_MODE);
-    EXPECT_EQ(fd1, 3);
+    EXPECT_EQ(fd1, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[1]);
@@ -198,6 +197,7 @@ TEST(hos_open_fd, over_threadnums)
     EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
+#if 0 //修改fd管理逻辑， fd不再有大小限制
 TEST(hos_open_fd, fd_not_enough)
 {
     int i = 0, fd = 0;
@@ -217,8 +217,8 @@ TEST(hos_open_fd, fd_not_enough)
     for (i = 0; i < 65533; i++)
     {
         fd = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0, BUFF_MODE);
-        EXPECT_EQ(fd, i+3);
-        expect_fd_info.fd = i+3;
+        EXPECT_EQ(fd, i+1);
+        expect_fd_info.fd = i+1;
         if (i == 0)
         {
             current = g_fd_context[0];
@@ -257,6 +257,7 @@ TEST(hos_open_fd, fd_not_enough)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
+#endif
 
 TEST(hos_open_fd, not_init_instance)
 {

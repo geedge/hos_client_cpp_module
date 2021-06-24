@@ -44,8 +44,6 @@ void add_fd_context(hos_fd_context_t **handle, hos_fd_context_t *input)
         value->position = input->position;
         value->recive_cnt = input->recive_cnt;
         value->fd_status = value->fd_status;
-        value->overtime = value->overtime;
-        value->timeout = value->timeout;
     }
 }
 

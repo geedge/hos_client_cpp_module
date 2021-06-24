@@ -25,11 +25,8 @@ typedef struct hos_fd_context_s
     size_t recive_cnt;
     long cache_rest;
     int fd_status;
-#define HOS_FD_FREE 0
-#define HOS_FD_REGISTER 1
-#define HOS_FD_INJECT 2
-    size_t overtime;    //计算后的时间点，超过即inject fd
-    size_t timeout;     //配置的超时时间，从status变成INJECT开始计时
+#define HOS_FD_REGISTER 0
+#define HOS_FD_INJECT 1
     UT_hash_handle hh;
 }hos_fd_context_t;
 

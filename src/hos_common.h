@@ -68,7 +68,8 @@ typedef struct hos_config_s
     uint32_t thread_num;
     uint32_t cache_size;
     uint32_t cache_count;
-    uint32_t timeout;
+    uint32_t max_request_num;
+    uint32_t max_request_context;
 }hos_config_t;
 
 typedef struct hos_func_thread_s
@@ -77,7 +78,7 @@ typedef struct hos_func_thread_s
     pthread_t fd_thread;
     int fd_thread_status;
     /* fs2 管理线程 */
-    fs2_info_t fs2_info[FS2_RECORD_EVENTS]; //0: data info; 1: fd info; 2 cache info; 3 PoolThread state
+    fs2_info_t fs2_info;
     pthread_t fs2_thread;
     int fs2_status;
 #define HOS_FS2_START 1
@@ -98,11 +99,12 @@ typedef struct hos_client_handle_s
     hos_func_thread_t hos_func;
     void *log;
     size_t *task_num;
+    size_t *task_context;
 }hos_client_handle_t;
 
 extern struct hos_instance_s g_hos_instance;
 extern hos_client_handle_t g_hos_handle;//一个进程只允许有一个g_hos_handle
 extern hos_fd_context_t **g_fd_context;
-extern size_t (*g_fd_info)[MAX_HOS_CLIENT_FD_NUM + 1]; //fd 实际从3开始， fd[thread_id][0]记录register的fd，fd[thread_id][1]记录inject的fd
+extern size_t *g_fd_info; //fd 实际从1开始,每个线程有独立的fd
 
 #endif

@@ -24,7 +24,8 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
     hos_handle->hos_config.pool_thread_size = 10;
     hos_handle->hos_config.port = 9098;
     hos_handle->hos_config.thread_num = thread_num;
-    hos_handle->hos_config.timeout = 1000;
+    hos_handle->hos_config.max_request_num = 100;
+    hos_handle->hos_config.max_request_context = 10240000;
     hos_handle->hos_func.fd_thread_status = 0;
     hos_handle->hos_func.fs2_status = 1;
 
@@ -56,13 +57,11 @@ static void gtest_hos_fd_init(hos_fd_context_t *fd_info)
     fd_info->cache_count = 10;
     fd_info->cache_rest = g_hos_handle.hos_config.cache_size;
     fd_info->callback = NULL;
-    fd_info->fd = 3;
+    fd_info->fd = 1;
     fd_info->fd_status = HOS_FD_REGISTER;
     fd_info->mode = BUFF_MODE;
-    fd_info->overtime = 0;
     fd_info->position = 0;
     fd_info->recive_cnt = 0;
-    fd_info->timeout =  g_hos_handle.hos_config.timeout;
     fd_info->userdata = NULL;
 }
 
@@ -80,7 +79,7 @@ TEST(hos_close_fd, normal)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     size_t fd = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0, BUFF_MODE);
-    EXPECT_EQ(fd, 3);
+    EXPECT_EQ(fd, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info);
@@ -131,7 +130,7 @@ TEST(hos_close_fd, paramer_error)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     CheckStructGHosFdContext(g_fd_context[0], NULL);
 
-    int ret = hos_close_fd(fd, 0);
+    int ret = hos_close_fd(fd, thread_num + 1);
     EXPECT_EQ(ret, HOS_PARAMETER_ERROR);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);

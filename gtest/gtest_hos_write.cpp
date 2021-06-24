@@ -26,7 +26,8 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
     hos_handle->hos_config.pool_thread_size = 10;
     hos_handle->hos_config.port = 9098;
     hos_handle->hos_config.thread_num = thread_num;
-    hos_handle->hos_config.timeout = 1000;
+    hos_handle->hos_config.max_request_num = 100;
+    hos_handle->hos_config.max_request_context = 10240000;
     hos_handle->hos_func.fd_thread_status = 0;
     hos_handle->hos_func.fs2_status = 1;
 
@@ -58,13 +59,11 @@ static void gtest_hos_fd_init(hos_fd_context_t *fd_info)
     fd_info->cache_count = 10;
     fd_info->cache_rest = g_hos_handle.hos_config.cache_size;
     fd_info->callback = NULL;
-    fd_info->fd = 3;
+    fd_info->fd = 1;
     fd_info->fd_status = HOS_FD_REGISTER;
     fd_info->mode = BUFF_MODE;
-    fd_info->overtime = 0;
     fd_info->position = 0;
     fd_info->recive_cnt = 0;
-    fd_info->timeout =  g_hos_handle.hos_config.timeout;
     fd_info->userdata = NULL;
 }
 
@@ -129,7 +128,7 @@ TEST(hos_write, normal)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     size_t fd = hos_open_fd(HOS_BUCKET, "object_buff", hos_write_buff_cb, (void *)"object_buff", 0, BUFF_MODE);
-    EXPECT_EQ(fd, 3);
+    EXPECT_EQ(fd, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[0]);
@@ -149,10 +148,9 @@ TEST(hos_write, normal)
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     //CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info[0]);
-    //EXPECT_TRUE(g_fd_context[0][0].cache == NULL);
 
     size_t fd1 = hos_open_fd(HOS_BUCKET, "object_append", hos_write_append_cb, (void *)"object_append", 1, BUFF_MODE | APPEND_MODE);
-    EXPECT_EQ(fd1, 3);
+    EXPECT_EQ(fd1, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[1]);
@@ -187,7 +185,7 @@ TEST(hos_write, normal)
     EXPECT_TRUE(g_fd_context[1][0].cache != NULL); 
 
     size_t fd2 = hos_open_fd(HOS_BUCKET, "object_file", hos_write_file_cb, (void *)"object_file", 2, FILE_MODE);
-    EXPECT_EQ(fd2, 3);
+    EXPECT_EQ(fd2, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[2]);
@@ -262,7 +260,7 @@ TEST(hos_write, bucket_not_exits)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     
     size_t fd = hos_open_fd("bucket_not_exits", "object_buff", hos_bucket_not_exits_cb, (void *)"object_buff", 0, BUFF_MODE);
-    EXPECT_EQ(fd, 3);
+    EXPECT_EQ(fd, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[0]);
@@ -280,10 +278,9 @@ TEST(hos_write, bucket_not_exits)
     data_info->tx_failed_pkts[0] += 1;
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
-    EXPECT_TRUE(g_fd_context[0][0].cache == NULL); 
 
     size_t fd1 = hos_open_fd("bucket_not_exits", "object_append", hos_bucket_not_exits_cb, (void *)"object_append", 1, BUFF_MODE | APPEND_MODE);
-    EXPECT_EQ(fd1, 3);
+    EXPECT_EQ(fd1, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[1]);
@@ -319,7 +316,7 @@ TEST(hos_write, bucket_not_exits)
     EXPECT_TRUE(g_fd_context[1][0].cache != NULL); 
 
     size_t fd2 = hos_open_fd("bucket_not_exits", "object_file", hos_bucket_not_exits_cb, (void *)"object_file", 2, FILE_MODE);
-    EXPECT_EQ(fd2, 3);
+    EXPECT_EQ(fd2, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[2]);
@@ -342,7 +339,6 @@ TEST(hos_write, bucket_not_exits)
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     //CheckStructGHosFdContext(g_fd_context[2], &expect_fd_info[2]);
-    EXPECT_TRUE(g_fd_context[2][0].cache == NULL); 
 
     ret = hos_close_fd(fd, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
@@ -396,7 +392,7 @@ TEST(hos_write, sync_mode)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     size_t fd = hos_open_fd(HOS_BUCKET, "object_buff", NULL, NULL, 0, BUFF_MODE);
-    EXPECT_EQ(fd, 3);
+    EXPECT_EQ(fd, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[0]);
@@ -412,10 +408,9 @@ TEST(hos_write, sync_mode)
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     //CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info[0]);
-    EXPECT_TRUE(g_fd_context[0][0].cache == NULL); 
 
     size_t fd1 = hos_open_fd(HOS_BUCKET, "object_append", NULL, NULL, 1, BUFF_MODE | APPEND_MODE);
-    EXPECT_EQ(fd1, 3);
+    EXPECT_EQ(fd1, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[1]);
@@ -448,7 +443,7 @@ TEST(hos_write, sync_mode)
     EXPECT_TRUE(g_fd_context[1][0].cache != NULL); 
 
     size_t fd2 = hos_open_fd(HOS_BUCKET, "object_buff", NULL, NULL, 2, FILE_MODE);
-    EXPECT_EQ(fd2, 3);
+    EXPECT_EQ(fd2, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[2]);
@@ -467,7 +462,6 @@ TEST(hos_write, sync_mode)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     expect_fd_info[2].fd_status = 2;
     //CheckStructGHosFdContext(g_fd_context[1], &expect_fd_info[1]);
-    EXPECT_TRUE(g_fd_context[2][0].cache == NULL); 
 
     ret = hos_close_fd(fd, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
@@ -521,7 +515,7 @@ TEST(hos_write, sync_mode_bucket_not_exits)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     
     size_t fd = hos_open_fd(HOS_CONF, "object_buff", NULL, NULL, 0, BUFF_MODE);
-    EXPECT_EQ(fd, 3);
+    EXPECT_EQ(fd, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[0]);
@@ -540,10 +534,9 @@ TEST(hos_write, sync_mode_bucket_not_exits)
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     //CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info[0]);
-    EXPECT_TRUE(g_fd_context[0][0].cache == NULL); 
 
     size_t fd1 = hos_open_fd(HOS_CONF, "object_append", NULL, NULL, 1, BUFF_MODE | APPEND_MODE);
-    EXPECT_EQ(fd1, 3);
+    EXPECT_EQ(fd1, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[1]);
@@ -577,7 +570,7 @@ TEST(hos_write, sync_mode_bucket_not_exits)
     EXPECT_TRUE(g_fd_context[1][0].cache != NULL); 
 
     size_t fd2 = hos_open_fd(HOS_CONF, "object_file", NULL, NULL, 2, FILE_MODE);
-    EXPECT_EQ(fd2, 3);
+    EXPECT_EQ(fd2, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[2]);
@@ -597,7 +590,6 @@ TEST(hos_write, sync_mode_bucket_not_exits)
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     //CheckStructGHosFdContext(g_fd_context[2], &expect_fd_info[2]);
-    EXPECT_TRUE(g_fd_context[2][0].cache == NULL); 
 
     ret = hos_close_fd(fd, 0);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
@@ -648,7 +640,7 @@ TEST(hos_write, paramer_error)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     
     int fd = hos_open_fd(HOS_BUCKET, "object_buff", hos_callback, NULL, 0, BUFF_MODE);
-    EXPECT_EQ(fd, 3);
+    EXPECT_EQ(fd, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info);
@@ -657,7 +649,7 @@ TEST(hos_write, paramer_error)
     expect_fd_info.mode = BUFF_MODE;
     CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info);
 
-    int ret = hos_write(0, HOS_BUFF, strlen(HOS_BUFF), 0);
+    int ret = hos_write(fd, NULL, strlen(HOS_BUFF), 0);
     EXPECT_EQ(ret, HOS_PARAMETER_ERROR);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
@@ -736,7 +728,7 @@ TEST(hos_write, file_not_exit)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     int fd = hos_open_fd(HOS_CONF, "object_file", NULL, NULL, 0, FILE_MODE);
-    EXPECT_EQ(fd, 3);
+    EXPECT_EQ(fd, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info);
@@ -784,7 +776,7 @@ TEST(hos_write, over_threadnums)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     int fd = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0, BUFF_MODE);
-    EXPECT_EQ(fd, 3);
+    EXPECT_EQ(fd, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info);
@@ -857,7 +849,7 @@ static void *hos_function(void *ptr)
     {
         snprintf(object[i], 1024, "object_%lu_%d", thread_id, i);
         fd[i] = hos_open_fd(HOS_BUCKET, object[i], hos_callback, object[i], 0, BUFF_MODE | APPEND_MODE);
-        EXPECT_EQ(fd[i], i + 3);
+        EXPECT_EQ(fd[i], i + 1);
         CheckHosInstance(hos_instance, &expect_hos_instance);
         CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
         gtest_hos_fd_init(&expect_fd_info[thread_id][i]);
