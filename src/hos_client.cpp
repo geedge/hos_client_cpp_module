@@ -605,7 +605,7 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
     MESA_load_profile_uint_def(conf_path, module, "hos_fs2_format", &hos_conf->fs2_fmt, 0);
     MESA_load_profile_uint_def(conf_path, module, "hos_request_num", &hos_conf->max_request_num, 100);
     MESA_load_profile_uint_def(conf_path, module, "hos_request_context", &hos_conf->max_request_context, 10240000);
-    if (hos_conf->ip && hos_conf->port && strlen(hos_conf->accesskeyid) && strlen(hos_conf->secretkey))
+    if (strlen(hos_conf->ip) && hos_conf->port && strlen(hos_conf->accesskeyid) && strlen(hos_conf->secretkey))
     {
         g_hos_handle.log = MESA_create_runtime_log_handle(hos_conf->log_path, hos_conf->log_level);
         if (g_hos_handle.log == NULL)
@@ -631,13 +631,13 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
                 return &g_hos_instance;
             }
             MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "debug:%s","Instance init completed");
-            if (hos_conf->fs2_ip && hos_conf->fs2_port)
+            if (strlen(hos_conf->fs2_ip) && hos_conf->fs2_port)
             {
                 hos_expand_fs2();
             }
             else
             {
-                MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,"error: hos fs2 function not starup");
+                MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,"error: hos fs2 function not starup");
             }
             g_hos_instance.error_code = 0;
             g_hos_instance.error_message[0]='\0';
@@ -903,7 +903,8 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
             Aws::String buffer(stream, stream_len);
             *a_fd_context->cache << buffer;
             a_fd_context->cache_rest -= stream_len;
-            data_info->cache[thread_id] += stream_len;
+            if (data_info != NULL)
+                data_info->cache[thread_id] += stream_len;
             if (a_fd_context->cache_count == 0 || --a_fd_context->cache_count)
             {
                 //cache_count == 0,不设置cache_count的情况
@@ -977,7 +978,8 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
     //恢复fd 的cache设置
     if (a_fd_context->mode & APPEND_MODE)
     {
-        data_info->cache[thread_id] -= upload_len;
+        if (data_info)
+            data_info->cache[thread_id] -= upload_len;
         a_fd_context->cache.reset();
         a_fd_context->cache = NULL;
         a_fd_context->cache_rest = hos_conf->cache_size;
@@ -1045,7 +1047,9 @@ int hos_close_fd(size_t fd, size_t thread_id)
             {
                 hos_putobject_sync(request, upload_len, thread_id, fd, a_fd_context->bucket, a_fd_context->object);
             }
-            ((data_info_t *)(g_hos_handle.hos_func.fs2_info.reserved))->cache[thread_id] = 0;
+            data_info_t *data_info = (data_info_t *)(g_hos_handle.hos_func.fs2_info.reserved);
+            if (data_info)
+                data_info->cache[thread_id] = 0;
         }
     }
     a_fd_context->fd_status = HOS_FD_INJECT;
@@ -1128,24 +1132,22 @@ int hos_shutdown_instance()
             }
             if (hos_func->fs2_info.reserved)
             {
-                if (i == 0)
-                {
-                    data_info_t * data_info = (data_info_t *)hos_func->fs2_info.reserved;
-                    if (data_info->rx_pkts)
-                        free(data_info->rx_pkts);
-                    if (data_info->rx_bytes)
-                        free(data_info->rx_bytes);
-                    if (data_info->tx_pkts)
-                        free(data_info->tx_pkts);
-                    if (data_info->tx_bytes)
-                        free(data_info->tx_bytes);
-                    if (data_info->tx_failed_bytes)
-                        free(data_info->tx_failed_bytes);
-                    if (data_info->tx_failed_pkts);
-                        free(data_info->tx_failed_pkts);
-                    if (data_info->cache)
-                        free(data_info->cache);
-                }
+                data_info_t *data_info = (data_info_t *)hos_func->fs2_info.reserved;
+                if (data_info->rx_pkts)
+                    free(data_info->rx_pkts);
+                if (data_info->rx_bytes)
+                    free(data_info->rx_bytes);
+                if (data_info->tx_pkts)
+                    free(data_info->tx_pkts);
+                if (data_info->tx_bytes)
+                    free(data_info->tx_bytes);
+                if (data_info->tx_failed_bytes)
+                    free(data_info->tx_failed_bytes);
+                if (data_info->tx_failed_pkts)
+                    ;
+                free(data_info->tx_failed_pkts);
+                if (data_info->cache)
+                    free(data_info->cache);
                 free(hos_func->fs2_info.reserved);
                 hos_func->fs2_info.reserved = NULL;
             }

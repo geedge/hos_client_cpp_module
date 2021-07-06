@@ -132,7 +132,7 @@ static int upload_file(char *file, char *buff, int buff_len, thread_info_t *thre
         fp = fopen(file, "w+");
         if (fp == NULL)
         {
-            printf("error:fopen failed\n");
+            perror("error:fopen failed\n");
             return -1;
         }
         if (fwrite(buff, buff_len, 1, fp) != 1)
@@ -177,10 +177,21 @@ static int upload_file(char *file, char *buff, int buff_len, thread_info_t *thre
     }
     variance /= g_test_count;
 
-    sprintf(file_size, "%dk", buff_len / 1024);
+    if (buff_len > 1024 * 1024)
+    {
+        sprintf(file_size, "%gM", (double)buff_len / 1024 / 1024);
+    }
+    else if (buff_len > 1024)
+    {
+        sprintf(file_size, "%gK", (double)buff_len / 1024);
+    }
+    else
+    {
+        sprintf(file_size, "%dB", buff_len);
+    }
     sprintf(&performance_info[len], "%-20lu%-20s%-20ld%-20ld%-20lf%-20lf\n",
             thread_info->thread_num, file_size, time_write, time_upload, average, sqrt(variance));
-    
+
     return 0;
 }
 

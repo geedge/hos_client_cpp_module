@@ -21,7 +21,7 @@ do
     #./HosClientPerformance -a 100 -A -f ./file/100k.data -t ${size[$num]} -S 1024
     #echo ./HosClientPerformance -a 100 -A -f ./file/100k.data -S ${size[$num]} -t 32
     #./HosClientPerformance -a 100 -A -f ./file/100k.data -S ${size[$num]} -t 32
-    echo ./HosClientPerformance -P1 -t32
-    ./HosClientPerformance -P1 -t32
+    echo ./HosClientPerformance -t ${num} -f ../file/100.data
+    ./HosClientPerformance -t ${num} -f ../file/100.data
     let "num++"
 done
