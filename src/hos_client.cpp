@@ -392,7 +392,6 @@ static screen_stat_handle_t hos_init_fs2(char *app_name, int app_name_size)
     {
         FS_set_para(fs2_handle, OUTPUT_DEVICE, hos_conf->fs2_path, strlen(hos_conf->fs2_path) + 1);
     }
-    value = 2;
     FS_set_para(fs2_handle, PRINT_MODE, &value, sizeof(value));
     value = 1;
     FS_set_para(fs2_handle, CREATE_THREAD, &value, sizeof(value));
@@ -599,8 +598,8 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
     MESA_load_profile_uint_def(conf_path, module, "hos_poolsize", &hos_conf->pool_thread_size, 0);
     MESA_load_profile_uint_def(conf_path, module, "hos_cache_size", &hos_conf->cache_size, 102400);
     MESA_load_profile_uint_def(conf_path, module, "hos_cache_count", &hos_conf->cache_count, 10);
-    MESA_load_profile_string_nodef(conf_path, module, "hos_fs2_serverip", hos_conf->fs2_ip, INET6_ADDRSTRLEN);
-    MESA_load_profile_uint_nodef(conf_path, module, "hos_fs2_serverport", &hos_conf->fs2_port);
+    MESA_load_profile_string_def(conf_path, module, "hos_fs2_serverip", hos_conf->fs2_ip, INET6_ADDRSTRLEN, "127.0.0.1");
+    MESA_load_profile_uint_def(conf_path, module, "hos_fs2_serverport", &hos_conf->fs2_port, 10086);
     MESA_load_profile_string_def(conf_path, module, "hos_fs2_path", hos_conf->fs2_path, sizeof(hos_conf->fs2_path), "./hos_fs2.stat");
     MESA_load_profile_uint_def(conf_path, module, "hos_fs2_format", &hos_conf->fs2_fmt, 0);
     MESA_load_profile_uint_def(conf_path, module, "hos_request_num", &hos_conf->max_request_num, 100);
@@ -631,14 +630,7 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
                 return &g_hos_instance;
             }
             MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "debug:%s","Instance init completed");
-            if (strlen(hos_conf->fs2_ip) && hos_conf->fs2_port)
-            {
-                hos_expand_fs2();
-            }
-            else
-            {
-                MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,"error: hos fs2 function not starup");
-            }
+            hos_expand_fs2();
             g_hos_instance.error_code = 0;
             g_hos_instance.error_message[0]='\0';
             g_hos_instance.hos_url_prefix = (const char *)calloc(1, strlen(hos_url) + 1);
