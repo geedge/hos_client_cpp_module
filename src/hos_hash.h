@@ -27,6 +27,9 @@ typedef struct hos_fd_context_s
     int fd_status;
 #define HOS_FD_REGISTER 0
 #define HOS_FD_INJECT 1
+    bool reslut; /*PutObjectAsync result*/
+    const char *error; /*PutObjectAsync error message*/
+
     UT_hash_handle hh;
 }hos_fd_context_t;
 

@@ -61,10 +61,10 @@ void CheckStructHosFunc(hos_func_thread_t *actual, hos_func_thread_t *expect, in
 {
     //EXPECT_EQ(actual->fd_thread, expect->fd_thread);
     EXPECT_EQ(actual->fd_thread_status, expect->fd_thread_status);
-    if (actual->fs2_info[0].reserved != NULL)
+    if (actual->fs2_info.reserved != NULL)
     {
-        CheckStructFs2DataInfo((data_info_t *)actual->fs2_info[0].reserved,
-            (data_info_t *)expect->fs2_info[0].reserved, thread_num);
+        CheckStructFs2DataInfo((data_info_t *)actual->fs2_info.reserved,
+            (data_info_t *)expect->fs2_info.reserved, thread_num);
     }
     EXPECT_EQ(actual->fs2_status, expect->fs2_status);
     //EXPECT_EQ(actual->fs2_thread, expect->fs2_thread);

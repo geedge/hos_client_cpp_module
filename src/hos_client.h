@@ -82,7 +82,7 @@ enum s3errors
   OBJECT_NOT_IN_ACTIVE_TIER
 };
 
-typedef void (*put_finished_callback)(bool, const char *, const char *, const char *, void *);
+typedef void (*put_finished_callback)(bool result, const char *bucket, const char *object, const char *errmsg, void *userdata);
 
 
 /*************************************************************************************
@@ -97,18 +97,6 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
  * 返回值： hos_instance 成功，result 为true
 *************************************************************************************/
 hos_instance hos_get_instance();
-/*************************************************************************************
- * 函数名： hos_verify_bucket
- * 参数：   const char * bucket         桶名称
- * 返回值： bool  成功返回true，失败返回false
-*************************************************************************************/
-bool hos_verify_bucket(const char *bucket);
-/*************************************************************************************
- * 函数名： hos_create_bucket
- * 参数：   const char * bucket         桶名称
- * 返回值： int  成功返回0，S3错误返回s3errors错误码，hos client错误返回hoserrors错误码
-*************************************************************************************/
-int hos_create_bucket(hos_instance instance, const char *bucket);
 /*************************************************************************************
  * 函数名： hos_upload_file
  * 参数：   hos_instance instance    非空句柄
@@ -143,7 +131,7 @@ int hos_upload_buf(const char *bucket, const char *object, const char *buf, size
  *          int mode                    模式 (FILE OR BUFFER, APPEND OR NOT)
  * 返回值   int                         成功返回fd(fd >=3)，失败返回hoserros错误码
 *************************************************************************************/
-int hos_open_fd(const char *bucket, const char *object, put_finished_callback callback, void *userdata, size_t thread_id, int mode);
+int hos_open_fd(const char *bucket, const char *object, put_finished_callback callback, void *userdata, size_t thread_id);
 /*************************************************************************************
  * 函数名： hos_write
  * 参数：   size_t fd                     hos_open_fd返回的fd

@@ -30,7 +30,7 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
     hos_handle->hos_func.fs2_status = 1;
 
     data_info_t *data_info = (data_info_t *)calloc(1, sizeof(data_info_t));
-    hos_handle->hos_func.fs2_info[0].reserved = (void *)data_info;
+    hos_handle->hos_func.fs2_info.reserved = (void *)data_info;
     data_info->tx_pkts = (size_t *)calloc(thread_num, sizeof(size_t));
     data_info->tx_bytes = (size_t *)calloc(thread_num, sizeof(size_t));
     data_info->rx_pkts = (size_t *)calloc(thread_num, sizeof(size_t));
@@ -59,7 +59,7 @@ static void gtest_hos_fd_init(hos_fd_context_t *fd_info)
     fd_info->callback = NULL;
     fd_info->fd = 1;
     fd_info->fd_status = HOS_FD_REGISTER;
-    fd_info->mode = BUFF_MODE;
+    fd_info->mode = BUFF_MODE | APPEND_MODE;
     fd_info->position = 0;
     fd_info->recive_cnt = 0;
     fd_info->userdata = NULL;
@@ -78,7 +78,7 @@ TEST(hos_close_fd, normal)
     gtest_hos_handle_init(&expect_hos_handle, thread_num);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
-    size_t fd = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0, BUFF_MODE);
+    size_t fd = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0);
     EXPECT_EQ(fd, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
@@ -97,7 +97,7 @@ TEST(hos_close_fd, normal)
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
     Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
-    data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info[0].reserved;
+    data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);
@@ -124,7 +124,7 @@ TEST(hos_close_fd, paramer_error)
     expect_hos_handle.hos_config.thread_num=2;
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
-    int fd = hos_open_fd(NULL, "object", NULL, NULL, 0, BUFF_MODE);
+    int fd = hos_open_fd(NULL, "object", NULL, NULL, 0);
     EXPECT_EQ(fd, HOS_PARAMETER_ERROR);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
@@ -142,7 +142,7 @@ TEST(hos_close_fd, paramer_error)
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
     Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
-    data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info[0].reserved;
+    data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);
@@ -186,7 +186,7 @@ TEST(hos_close_fd, fd_not_exits)
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
     Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
-    data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info[0].reserved;
+    data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);

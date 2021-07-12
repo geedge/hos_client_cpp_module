@@ -214,7 +214,7 @@ static int upload_buff(char * buff, int buff_len, thread_info_t *thread_info, ch
 
     if (g_mode & APPEND_MODE)
     {
-        fd[0] = hos_open_fd(thread_info->bucket, thread_info->object, callback, NULL, thread_info->thread_num, g_mode);
+        fd[0] = hos_open_fd(thread_info->bucket, thread_info->object, callback, NULL, thread_info->thread_num);
 
         for (i = 0; i < g_test_count; i++)
         {
@@ -224,7 +224,7 @@ static int upload_buff(char * buff, int buff_len, thread_info_t *thread_info, ch
             {
                 tmp = j * g_append_size;
                 rest = buff_len - tmp;
-                if (rest < g_append_size)
+                if (rest <= g_append_size)
                 {
                     hos_write(fd[0], &buff[tmp], rest, thread_info->thread_num);
                     break;
@@ -266,8 +266,7 @@ static int upload_buff(char * buff, int buff_len, thread_info_t *thread_info, ch
         for (i = 0; i < g_test_count; i++)
         {
             clock_gettime(CLOCK_MONOTONIC, &tstart);
-            fd[i] = hos_open_fd(thread_info->bucket, thread_info->object, callback, NULL, thread_info->thread_num, g_mode);
-            ret = hos_write(fd[i], buff, buff_len, thread_info->thread_num);
+            ret = hos_upload_buf(thread_info->bucket, thread_info->object, buff, buff_len, callback, NULL, thread_info->thread_num);
             if (ret == HOS_CLIENT_OK)
             {
                 success_cnt++;

@@ -30,7 +30,7 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
     hos_handle->hos_func.fs2_status = 1;
 
     data_info_t *data_info = (data_info_t *)calloc(1, sizeof(data_info_t));
-    hos_handle->hos_func.fs2_info[0].reserved = (void *)data_info;
+    hos_handle->hos_func.fs2_info.reserved = (void *)data_info;
     data_info->tx_pkts = (size_t *)calloc(thread_num, sizeof(size_t));
     data_info->tx_bytes = (size_t *)calloc(thread_num, sizeof(size_t));
     data_info->rx_pkts = (size_t *)calloc(thread_num, sizeof(size_t));
@@ -59,7 +59,7 @@ static void gtest_hos_fd_init(hos_fd_context_t *fd_info)
     fd_info->callback = NULL;
     fd_info->fd = 1;
     fd_info->fd_status = HOS_FD_REGISTER;
-    fd_info->mode = BUFF_MODE;
+    fd_info->mode = BUFF_MODE | APPEND_MODE;
     fd_info->position = 0;
     fd_info->recive_cnt = 0;
     fd_info->userdata = NULL;
@@ -77,14 +77,14 @@ TEST(hos_open_fd, normal)
     gtest_hos_handle_init(&expect_hos_handle, 2);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
-    size_t fd = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0, BUFF_MODE);
+    size_t fd = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0);
     EXPECT_EQ(fd, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[0]);
     CheckStructGHosFdContext(g_fd_context[0], &expect_fd_info[0]);
     
-    size_t fd1 = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 1, BUFF_MODE);
+    size_t fd1 = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 1);
     EXPECT_EQ(fd1, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
@@ -110,7 +110,7 @@ TEST(hos_open_fd, normal)
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
     Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
-    data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info[0].reserved;
+    data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);
@@ -134,7 +134,7 @@ TEST(hos_open_fd, paramer_error)
     gtest_hos_handle_init(&expect_hos_handle, 2);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     
-    int fd = hos_open_fd(NULL, "object", NULL, NULL, 0, BUFF_MODE);
+    int fd = hos_open_fd(NULL, "object", NULL, NULL, 0);
     EXPECT_EQ(fd, HOS_PARAMETER_ERROR);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
@@ -147,7 +147,7 @@ TEST(hos_open_fd, paramer_error)
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
     Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
-    data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info[0].reserved;
+    data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);
@@ -171,7 +171,7 @@ TEST(hos_open_fd, over_threadnums)
     gtest_hos_handle_init(&expect_hos_handle, 2);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
-    int fd = hos_open_fd(HOS_CONF, "object", NULL, NULL, 3, BUFF_MODE);
+    int fd = hos_open_fd(HOS_CONF, "object", NULL, NULL, 3);
     EXPECT_EQ(fd, HOS_PARAMETER_ERROR);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
@@ -184,7 +184,7 @@ TEST(hos_open_fd, over_threadnums)
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
     Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
-    data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info[0].reserved;
+    data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);
@@ -196,71 +196,9 @@ TEST(hos_open_fd, over_threadnums)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
-
-#if 0 //修改fd管理逻辑， fd不再有大小限制
-TEST(hos_open_fd, fd_not_enough)
-{
-    int i = 0, fd = 0;
-    hos_instance_s expect_hos_instance;
-    hos_client_handle_t expect_hos_handle;
-    hos_fd_context_t expect_fd_info;
-    
-    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2, HOS_BUCKET);
-    gtest_hos_instance_init(&expect_hos_instance);
-    CheckHosInstance(hos_instance, &expect_hos_instance);
-    gtest_hos_handle_init(&expect_hos_handle, 2);
-    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
-
-    gtest_hos_fd_init(&expect_fd_info);
-    hos_fd_context_t * prev = NULL;
-    hos_fd_context_t * current = NULL;
-    for (i = 0; i < 65533; i++)
-    {
-        fd = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0, BUFF_MODE);
-        EXPECT_EQ(fd, i+1);
-        expect_fd_info.fd = i+1;
-        if (i == 0)
-        {
-            current = g_fd_context[0];
-        }
-        else
-        {
-            current = (hos_fd_context_t *)prev->hh.next;
-        }
-        CheckStructGHosFdContext(current, &expect_fd_info);
-        prev = current;
-        CheckHosInstance(hos_instance, &expect_hos_instance);
-        CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
-    }
-    fd = hos_open_fd(HOS_CONF, "object", NULL, NULL, 0, BUFF_MODE);
-    EXPECT_EQ(fd, HOS_FD_NOT_ENOUGH);
-    CheckHosInstance(hos_instance, &expect_hos_instance);
-    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
-    EXPECT_EQ(prev->hh.next, (void *)NULL);
-
-    int ret = hos_shutdown_instance();
-    EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
-    expect_hos_instance.hos_url_prefix = NULL;
-    CheckHosInstance(hos_instance, &expect_hos_instance);
-
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
-    data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info[0].reserved;
-    free(data_info->cache);
-    free(data_info->rx_bytes);
-    free(data_info->rx_pkts);
-    free(data_info->tx_bytes);
-    free(data_info->tx_pkts);
-    free(data_info->tx_failed_bytes);
-    free(data_info->tx_failed_pkts);
-    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
-    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
-    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
-}
-#endif
 
 TEST(hos_open_fd, not_init_instance)
 {
-    int fd = hos_open_fd(HOS_CONF, "object", NULL, NULL, 0, BUFF_MODE);
+    int fd = hos_open_fd(HOS_CONF, "object", NULL, NULL, 0);
     EXPECT_EQ(fd, HOS_INSTANCE_NOT_INIT);
 }

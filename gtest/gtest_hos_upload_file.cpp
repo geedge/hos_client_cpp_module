@@ -31,7 +31,7 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
     hos_handle->hos_func.fs2_status = 1;
 
     data_info_t *data_info = (data_info_t *)calloc(1, sizeof(data_info_t));
-    hos_handle->hos_func.fs2_info[0].reserved = (void *)data_info;
+    hos_handle->hos_func.fs2_info.reserved = (void *)data_info;
     data_info->tx_pkts = (size_t *)calloc(thread_num, sizeof(size_t));
     data_info->tx_bytes = (size_t *)calloc(thread_num, sizeof(size_t));
     data_info->rx_pkts = (size_t *)calloc(thread_num, sizeof(size_t));
@@ -79,7 +79,7 @@ TEST(hos_upload_file, normal)
     gtest_hos_instance_init(&expect_hos_instance);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     gtest_hos_handle_init(&expect_hos_handle, 2);
-    data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info[0].reserved;
+    data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     int ret  = hos_upload_file(HOS_BUCKET, HOS_BUFF, hos_callback, (void *)HOS_BUFF, 0);
@@ -123,7 +123,7 @@ TEST(hos_upload_file, param_error)
     gtest_hos_instance_init(&expect_hos_instance);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     gtest_hos_handle_init(&expect_hos_handle, 2);
-    data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info[0].reserved;
+    data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     int ret  = hos_upload_file(NULL, "object", hos_callback, (void *)"object", 0);
@@ -161,7 +161,7 @@ TEST(hos_upload_file, file_not_exits)
     gtest_hos_instance_init(&expect_hos_instance);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     gtest_hos_handle_init(&expect_hos_handle, 2);
-    data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info[0].reserved;
+    data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     int ret  = hos_upload_file(HOS_BUCKET, "file_not_exits", hos_callback, (void *)"object", 0);
@@ -205,7 +205,7 @@ TEST(hos_upload_file, bucket_not_exits)
     gtest_hos_instance_init(&expect_hos_instance);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     gtest_hos_handle_init(&expect_hos_handle, 2);
-    data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info[0].reserved;
+    data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     int ret  = hos_upload_file(HOS_CONF, HOS_CONF, hos_bucket_not_exits_cb, (void *)HOS_CONF, 0);
