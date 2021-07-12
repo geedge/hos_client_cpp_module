@@ -34,6 +34,7 @@ typedef struct data_info_s
     size_t *tx_failed_pkts;
     size_t *tx_failed_bytes;
     size_t *cache;
+    size_t tx_req_num_overflow;
 }data_info_t;
 
 typedef struct fs2_info_s
