@@ -155,7 +155,7 @@ static int upload_file(char *file, char *buff, int buff_len, thread_info_t *thre
     for (i = 0; i < g_test_count; i++)
     {
         clock_gettime(CLOCK_MONOTONIC, &tstart);
-        fd[i] = hos_open_fd(thread_info->bucket, thread_info->object, callback, NULL, thread_info->thread_num, g_mode);
+        fd[i] = hos_open_fd(thread_info->bucket, thread_info->object, callback, NULL, thread_info->thread_num);
         if (hos_write(fd[i], file, 0, thread_info->thread_num) != HOS_CLIENT_OK)
         {
             printf("error:hos_write file:%s\n", file);

@@ -54,8 +54,6 @@ int file_to_buffer(const char *file, char *buffer, int size)
 
 void callback(bool result, const char *error, const char *bucket, const char *object, void *userdata)
 {
-    userdata_t *data = (userdata_t *)userdata;
-    clock_gettime(CLOCK_MONOTONIC, data->finished);
     return ;
 }
 
@@ -80,6 +78,7 @@ int main(int argc, char *argv[])
     userdata_t data = {&finished};
     hos_instance hos_instance = NULL;
     char object[1024];
+    const char *bucket = "hos_test_not_exit_bucket";
 
     if (stat(file_name, &buffer) == -1)
     {
@@ -99,7 +98,7 @@ int main(int argc, char *argv[])
     hos_instance = hos_get_instance();
     if (hos_instance->result == false)
     {
-        hos_instance = hos_init_instance(conf_file, module_name, 1, "hos_test_bucket");
+        hos_instance = hos_init_instance(conf_file, module_name, 1, bucket);
     }
     if (hos_instance->result == false) 
     {
@@ -109,32 +108,26 @@ int main(int argc, char *argv[])
     }  
     printf("hos_init_instance success ... \n");
 
-    mode = FILE_MODE;
-    printf("hos_write file start ...\n");
-    snprintf(object, 1023, "%s_write_file", file_name);
-    fd = hos_open_fd("hos_test_bucket", object, callback, NULL, 0, mode);
-    if (hos_write(fd, file_name, 0, 0) != HOS_CLIENT_OK)
+    printf("hos_upload_file start ...\n");
+    snprintf(object, 1023, "%s_upload_file", file_name);
+    if (hos_upload_file(bucket, file_name, callback, NULL, 0) != HOS_CLIENT_OK)
     {
-        printf("error: hos_write fialed!\n");
+        printf("error: hos_upload_file fialed!\n");
     }
-    hos_close_fd(fd, 0);
-    printf("hos_write file end ...\n");
+    printf("hos_upload_file end ...\n");
 
-    mode = BUFF_MODE;
-    printf("hos_write buff start ...\n");
-    snprintf(object, 1023, "%s_write_buff", file_name);
-    fd = hos_open_fd("hos_test_bucket", object, callback, NULL, 0, mode);
-    if (hos_write(fd, buf, buffer.st_size, 0) != HOS_CLIENT_OK)
+    printf("hos_upload_buff start ...\n");
+    snprintf(object, 1023, "%s_upload_buff", file_name);
+    if (hos_upload_buf(bucket, object, buf, buffer.st_size, callback, NULL, 0) != HOS_CLIENT_OK)
     {
-        printf("error: hos_write failed!\n");
+        printf("error: hos_upload_buff failed!\n");
     }
-    hos_close_fd(fd, 0);
-    printf("hos_write buff end ...\n");
+    printf("hos_upload_buff end ...\n");
 
     mode = BUFF_MODE | APPEND_MODE;
     printf("hos_write buff start ...\n");
     snprintf(object, 1023, "%s_write_APPEND", file_name);
-    fd = hos_open_fd("hos_test_bucket", object, callback, NULL, 0, mode);
+    fd = hos_open_fd(bucket, object, callback, NULL, 0);
     if (hos_write(fd, buf, buffer.st_size, 0) != HOS_CLIENT_OK)
     {
         printf("error: hos_write failed 1st!\n");

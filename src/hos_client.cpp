@@ -46,6 +46,7 @@ extern "C"
 struct hos_instance_s g_hos_instance;
 hos_client_handle_t g_hos_handle;//一个进程只允许有一个g_hos_handle
 static std::mutex m_client_lock;
+static std::mutex m_instance_lock;
 static std::mutex m_delete_lock;
 hos_fd_context_t **g_fd_context;
 size_t *g_fd_info; //fd 实际从1开始,每个线程有独立的fd
@@ -1055,7 +1056,7 @@ int hos_close_fd(size_t fd, size_t thread_id)
 
 int hos_shutdown_instance()
 {
-    std::lock_guard<std::mutex> locker(m_client_lock);
+    std::lock_guard<std::mutex> locker(m_instance_lock);
     size_t i = 0;
     hos_config_t *hos_conf = &g_hos_handle.hos_config;
     hos_func_thread_t *hos_func = &g_hos_handle.hos_func;
