@@ -4,7 +4,6 @@
 #include <netinet/in.h>
 #include <mutex>
 #include "field_stat2.h"
-#include "hos_hash.h"
 #include <aws/core/Aws.h>
 #include <aws/s3/S3Client.h>
 #include <aws/core/auth/AWSCredentials.h>
@@ -14,10 +13,12 @@
 #define atomic_add(x,y) __sync_add_and_fetch((x),(y))
 #define atomic_read(x) __sync_add_and_fetch((x),0)
 #define atomic_sub(x,y) __sync_sub_and_fetch((x),(y))
+#define atomic_set(x,y) __sync_lock_test_and_set((x),y)
 #else 
 #define atomic_add(x,y) ((*(x))+=(y))
 #define atomic_read(x) 	(*(x))
 #define atomic_sub(x,y) ((*(x))-=(y))
+#define atomic_set(x,y)   ((*(x))=(y))
 #endif 
 
 #define MAX_HOS_STRING_LEN 1024
@@ -25,15 +26,22 @@
 #define MAX_HOS_CLIENT_FD_NUM 65535
 #define HOS_LOG_PATH "./tsglog/hoslog"
 
+/*hos instance */
+typedef struct hos_info_s{
+  int  error_code;
+  char error_message[1024];
+  const char *hos_url_prefix;
+}* hos_infot_t;
+
 typedef struct data_info_s
 {
-    size_t *tx_pkts;
-    size_t *tx_bytes;
-    size_t *rx_pkts;
-    size_t *rx_bytes;
-    size_t *tx_failed_pkts;
-    size_t *tx_failed_bytes;
-    size_t *cache;
+    size_t tx_pkts;
+    size_t tx_bytes;
+    size_t rx_pkts;
+    size_t rx_bytes;
+    size_t tx_failed_pkts;
+    size_t tx_failed_bytes;
+    size_t cache;
     size_t tx_req_num_overflow;
 }data_info_t;
 
@@ -42,7 +50,7 @@ typedef struct fs2_info_s
     screen_stat_handle_t fs2_handle;
     int *line_ids;
     int *column_ids;
-    void *reserved; //预留给每个fs2 handle用来存储自定义的数据
+    data_info_t data_info;
 }fs2_info_t;
 
 enum
@@ -66,7 +74,7 @@ typedef struct hos_config_s
     uint32_t fs2_fmt;
     uint32_t log_level;
     uint32_t pool_thread_size;
-    uint32_t thread_num;
+    //uint32_t thread_num;
     uint32_t cache_size;
     uint32_t cache_count;
     uint32_t max_request_num;
@@ -94,18 +102,35 @@ typedef struct hos_client_handle_s
     Aws::S3::S3ClientMock *S3Client;
     #endif
     Aws::Vector<Aws::S3::Model::Bucket> buckets;
-    std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor> executor;
+    //std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor> executor;
     size_t count;  /* 记录了有多少个对象在使用hos */
     hos_config_t hos_config;
     hos_func_thread_t hos_func;
     void *log;
-    size_t *task_num;
-    size_t *task_context;
+    size_t task_num;
+    size_t task_context;
 }hos_client_handle_t;
 
-extern struct hos_instance_s g_hos_instance;
+typedef struct hos_handle_s
+{
+    int  mode;
+    //hos_client_handle handle; 
+    char *bucket;
+    char *object;
+    put_finished_callback callback;
+    void *userdata;
+    std::shared_ptr<Aws::IOStream> cache;
+    size_t cache_count;
+    size_t position;
+    size_t recive_cnt;
+    long cache_rest;
+    int handle_status;
+#define HOS_HANDLE_REGISTER 0
+#define HOS_HANDLE_CANCEL 1
+    bool reslut; /*PutObjectAsync result*/
+    const char *error; /*PutObjectAsync error message*/
+}hos_handle_t;
+
 extern hos_client_handle_t g_hos_handle;//一个进程只允许有一个g_hos_handle
-extern hos_fd_context_t **g_fd_context;
-extern size_t *g_fd_info; //fd 实际从1开始,每个线程有独立的fd
 
 #endif
