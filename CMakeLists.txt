@@ -17,6 +17,7 @@ set(SUPPORT_INSTALL_PREFIX /usr/local/lib64)
 
 add_subdirectory(support) 
 add_subdirectory(src) 
+#add_subdirectory(gtest)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/src/libhos-client-cpp.so DESTINATION ${CMAKE_INSTALL_PREFIX}/lib COMPONENT LIBRARIES)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/hos_client.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include COMPONENT HEADER)

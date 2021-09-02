@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 2.8)
 project(gtest_hos_client)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} SRCS)
 

@@ -6,13 +6,8 @@
 #ifndef __HOS_CLIENT_INIT__
 #define __HOS_CLIENT_INIT__
 
-/*hos instance */
-typedef struct hos_instance_s{
-  bool result;
-  int  error_code;
-  char error_message[1024];
-  const char *hos_url_prefix;
-}* hos_instance;
+struct hos_instance_s;
+typedef struct hos_instance_s *hos_instance;
 
 #define HOS_CLIENT_OK 0
 
@@ -33,6 +28,7 @@ enum hoserrors
     HOS_CONF_ERROR = -7,
     HOS_BUCKET_NOT_EXIST = -8,
     HOS_INSTANCE_NOT_INIT = -9,
+    HOS_INSTANCE_NOT_ENABLE = -10,
 
 };
 
@@ -94,9 +90,12 @@ typedef void (*put_finished_callback)(bool result, const char *bucket, const cha
 hos_instance hos_init_instance(const char *conf_path, const char *module, size_t thread_num, const char *bucket);
 /*************************************************************************************
  * 函数名： hos_get_instance
- * 返回值： hos_instance 成功，result 为true
+ * 返回值： hos_instance
 *************************************************************************************/
 hos_instance hos_get_instance();
+bool hos_get_init_instance_result();
+char *hos_get_upload_prefix();
+int hos_get_init_instance_errorcode();
 /*************************************************************************************
  * 函数名： hos_upload_file
  * 参数：   hos_instance instance    非空句柄

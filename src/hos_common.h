@@ -14,16 +14,29 @@
 #define atomic_add(x,y) __sync_add_and_fetch((x),(y))
 #define atomic_read(x) __sync_add_and_fetch((x),0)
 #define atomic_sub(x,y) __sync_sub_and_fetch((x),(y))
+#define atomic_set(x,y) __sync_lock_test_and_set((x),(y))
 #else 
 #define atomic_add(x,y) ((*(x))+=(y))
 #define atomic_read(x) 	(*(x))
 #define atomic_sub(x,y) ((*(x))-=(y))
+#define atomic_set(x,y) (*(x)=(y))
 #endif 
 
 #define MAX_HOS_STRING_LEN 1024
 #define HOS_ERROR_MESSAGE_SIZE (MAX_HOS_STRING_LEN - 1)
 #define MAX_HOS_CLIENT_FD_NUM 65535
 #define HOS_LOG_PATH "./tsglog/hoslog"
+
+/*hos instance */
+typedef struct hos_instance_s{
+#define INSTANCE_UNINIT_STATE 0
+#define INSTANCE_ATTEMPT_STATE 1
+#define INSTANCE_ENABLE_STATE 2
+  int status;
+  int  error_code;
+  char error_message[1024];
+  const char *hos_url_prefix;
+}* hos_instance;
 
 typedef struct data_info_s
 {
@@ -54,8 +67,8 @@ enum
 
 typedef struct hos_config_s
 {
-    char ip[INET6_ADDRSTRLEN];
-    char fs2_ip[INET6_ADDRSTRLEN];
+    char ip[INET6_ADDRSTRLEN+1];
+    char fs2_ip[INET6_ADDRSTRLEN+1];
     char accesskeyid[MAX_HOS_STRING_LEN];
     char secretkey[MAX_HOS_STRING_LEN];
     char log_path[MAX_HOS_STRING_LEN];
@@ -82,6 +95,8 @@ typedef struct hos_func_thread_s
     fs2_info_t fs2_info;
     pthread_t fs2_thread;
     int fs2_status;
+    pthread_t hos_client_retry_thread_id;
+    int hos_client_retry_thread_status;
 #define HOS_FS2_START 1
 #define HOS_FS2_STOP  2
 }hos_func_thread_t;
@@ -94,7 +109,6 @@ typedef struct hos_client_handle_s
     Aws::S3::S3ClientMock *S3Client;
     #endif
     Aws::Vector<Aws::S3::Model::Bucket> buckets;
-    std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor> executor;
     size_t count;  /* 记录了有多少个对象在使用hos */
     hos_config_t hos_config;
     hos_func_thread_t hos_func;
