@@ -24,7 +24,8 @@ extern "C"
 #include "hos_client.h"
 #include "MESA_prof_load.h"
 #include "hos_common.h"
-#ifdef HOS_MESA_LOG
+//#ifdef HOS_MESA_LOG
+#if 0
 #include "MESA_handle_logger.h"
 #else
 #define RLOG_LV_DEBUG       10
@@ -52,14 +53,16 @@ hos_fd_context_t **g_fd_context;
 size_t *g_fd_info; //fd 实际从1开始,每个线程有独立的fd
 static Aws::SDKOptions g_options;
 Aws::Auth::AWSCredentials g_credentials;
-Aws::Client::ClientConfiguration g_client_config;
+Aws::Client::ClientConfiguration *g_client_config;
 
+#if 0
 static inline size_t get_current_ms()
 {
     struct timespec timenow;
     clock_gettime(CLOCK_MONOTONIC, &timenow);
     return (timenow.tv_sec * 1000 + timenow.tv_nsec / 1000 / 1000 );
-}   
+}
+#endif   
 
 static int hos_delete_fd(size_t fd, size_t thread_id)
 {
@@ -108,7 +111,7 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
     if (a_fd_context == NULL)
     {
         MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
-           "error: Not find the info of [thread_id:%lu fd:%lu]", thread_id, fd);
+           "[%s] error: Not find the info of [thread_id:%lu fd:%lu]", g_hos_instance.hos_url_prefix, thread_id, fd);
 
         if (hos_func->fs2_info.fs2_handle && hos_func->fs2_info.reserved)
         {
@@ -124,7 +127,7 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
         {
             error = outcome.GetError().GetMessage().c_str();
             MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
-                                    "error: [%s:%s] upload failed. error:%s", a_fd_context->bucket, a_fd_context->object, error);
+                                    "[%s%s/%s] error: upload failed. error:%s", g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object, error);
 
             if (hos_func->fs2_info.fs2_handle && hos_func->fs2_info.reserved)
             {
@@ -141,14 +144,14 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
                 data_info->tx_pkts[thread_id]++;
                 data_info->tx_bytes[thread_id] += stream_len;
                 MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                                        "debug: [%s:%s] upload success. tx_pkts:%lu, tx_bytes:%lu",
-                                        a_fd_context->bucket, a_fd_context->object,
+                                        "[%s%s/%s]debug: upload success. tx_pkts:%lu, tx_bytes:%lu",
+                                        g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object,
                                         data_info->tx_pkts[thread_id], data_info->tx_bytes[thread_id]);
             }
             else
             {
                 MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                                        "debug: [%s:%s] upload success. stream size:%lu", a_fd_context->bucket, a_fd_context->object, stream_len);
+                                        "[%s%s/%s]debug: upload success. stream size:%lu", g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object, stream_len);
             }
         }
         a_fd_context->reslut = result;
@@ -163,8 +166,8 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
                 if (a_fd_context->position == a_fd_context->recive_cnt)
                 {
                     MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                                            "debug: [%s:%s] upload completed. [thread:%lu fd:%lu] delete",
-                                            a_fd_context->bucket, a_fd_context->object, thread_id, a_fd_context->fd);
+                                            "[%s%s/%s]debug: upload completed. [thread:%lu fd:%lu] delete",
+                                            g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object, thread_id, a_fd_context->fd);
                     hos_delete_fd(fd, thread_id);
                 }
             }
@@ -173,8 +176,8 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
         {
             //完整上传 删除fd
             MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                                    "debug: [%s:%s] upload completed. [thread:%lu fd:%lu] delete",
-                                    a_fd_context->bucket, a_fd_context->object, thread_id, a_fd_context->fd);
+                                    "[%s%s/%s]debug: upload completed. [thread:%lu fd:%lu] delete",
+                                    g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object, thread_id, a_fd_context->fd);
             hos_delete_fd(fd, thread_id);
         }
     }
@@ -194,139 +197,107 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
 
 static int hos_attempt_connection()
 {
-    hos_config_t *hos_conf = &g_hos_handle.hos_config;
-    #ifndef HOS_MOCK
-    g_hos_handle.S3Client = new Aws::S3::S3Client(g_credentials, g_client_config, Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
-    #else
-    g_hos_handle.S3Client = new Aws::S3::S3ClientMock(credentials, g_client_config, Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
-    #endif
+    int bucket_exit = false;
     /* 获取当前用户的所有的buckets */
     Aws::S3::Model::ListBucketsOutcome outcome = g_hos_handle.S3Client->ListBuckets();
 
     if (!outcome.IsSuccess())
     {
-        delete g_hos_handle.S3Client;
-        g_hos_handle.S3Client = NULL;
-        Aws::ShutdownAPI(g_options);
         g_hos_instance.error_code = (size_t)outcome.GetError().GetErrorType() + 1;
         snprintf(g_hos_instance.error_message, HOS_ERROR_MESSAGE_SIZE, outcome.GetError().GetMessage().c_str());
         atomic_set(&g_hos_instance.status, INSTANCE_ATTEMPT_STATE);
-        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "%s error: %s", g_client_config.endpointOverride.c_str(), g_hos_instance.error_message);
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "[%s] ErrorCode:%d, Error: %s",
+            g_client_config->endpointOverride.c_str(), g_hos_instance.error_code, g_hos_instance.error_message);
+
+        if (g_hos_instance.error_code == NETWORK_CONNECTION)
+        {
+            atomic_set(&g_hos_instance.status, INSTANCE_ATTEMPT_STATE);
+        }
+        else
+        {
+            atomic_set(&g_hos_handle.count, 0);//立即shutdown
+            hos_shutdown_instance();
+            g_hos_instance.status =  INSTANCE_UNINIT_STATE;
+            g_hos_instance.error_code = (size_t)outcome.GetError().GetErrorType() + 1;
+            snprintf(g_hos_instance.error_message, HOS_ERROR_MESSAGE_SIZE, outcome.GetError().GetMessage().c_str());
+        }
         return g_hos_instance.error_code;
     }
-
+    //验证bucket存不存在
+    for (Aws::S3::Model::Bucket &new_bucket : g_hos_handle.buckets)
+    {
+        if (strcmp(new_bucket.GetName().c_str(), g_hos_handle.hos_config.bucket) == 0)
+        {
+            MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "[%s] debug: bucket:%s exits",
+                                    g_hos_instance.hos_url_prefix, g_hos_handle.hos_config.bucket);
+            bucket_exit = true;
+        }
+    }
+    if (bucket_exit == false)
+    {
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "[%s]error: bucket:%s not exist.",
+                                g_hos_instance.hos_url_prefix, g_hos_handle.hos_config.bucket);
+        char url[1024];
+        snprintf(url, 1024, g_hos_instance.hos_url_prefix);
+        char bucket[1024];
+        snprintf(bucket, 1024, g_hos_handle.hos_config.bucket);
+        hos_shutdown_instance();
+        atomic_set(&g_hos_handle.count, 0); //立即shutdown
+        g_hos_instance.error_code = HOS_BUCKET_NOT_EXIST;
+        snprintf(g_hos_instance.error_message, 1024, "[%s] error: bucket %s not exits.", url, bucket);
+        return HOS_BUCKET_NOT_EXIST;
+    }
     g_hos_handle.buckets = outcome.GetResult().GetBuckets();
-    g_hos_handle.count++;
-    g_hos_handle.task_num = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
-    g_hos_handle.task_context = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
-
-    g_fd_context = (hos_fd_context_t **)calloc(hos_conf->thread_num, sizeof(hos_fd_context_t *));
-    g_fd_info = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
-    
-    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "debug: hos s3client create success, url:%s.",g_client_config.endpointOverride.c_str());
-    g_hos_instance.error_code = 0;
-    g_hos_instance.error_message[0] = '\0';
-    g_hos_instance.hos_url_prefix = g_client_config.endpointOverride.c_str();
     atomic_set(&g_hos_instance.status, INSTANCE_ENABLE_STATE);
-
     return HOS_CLIENT_OK;
 }
 
+//检测hos 是否可用
 static void *hos_attempt_connection_exhaustively(void *ptr)
 {
     while(atomic_read(&g_hos_handle.hos_func.hos_client_retry_thread_status) == 0)
     {
-        if (hos_attempt_connection() == HOS_CLIENT_OK)
-        {
-            atomic_set(&g_hos_handle.hos_func.hos_client_retry_thread_status, 1);
-            hos_expand_fs2();
-            pthread_exit(NULL);
-        }
-        sleep(60);
+        hos_attempt_connection();
+        sleep(g_hos_handle.hos_config.reconnection_time);
     }
     pthread_exit(NULL);
 }
 
-
-static void hos_client_create()
+static screen_stat_handle_t hos_init_fs2(char *app_name, int app_name_size)
 {
+    int value = 0;
+    screen_stat_handle_t fs2_handle = FS_create_handle();
     hos_config_t *hos_conf = &g_hos_handle.hos_config;
-    void *log = g_hos_handle.log;
 
-    //每调用一次此函数，那么就必须调用一次destroy函数
-    atomic_add(&g_hos_handle.count, 1);
-    if (atomic_read(&g_hos_instance.status) != INSTANCE_UNINIT_STATE)
+    FS_set_para(fs2_handle, APP_NAME, app_name, app_name_size + 1);
+    //value = 0; //true
+    //FS_set_para(fs2_handle, FLUSH_BY_DATE, &value, sizeof(value));
+    if (hos_conf->fs2_path != NULL)
     {
-        return;   
+        FS_set_para(fs2_handle, OUTPUT_DEVICE, hos_conf->fs2_path, strlen(hos_conf->fs2_path) + 1);
     }
-
-    Aws::InitAPI(g_options);
-    g_credentials.SetAWSAccessKeyId(hos_conf->accesskeyid);
-    g_credentials.SetAWSSecretKey(hos_conf->secretkey);
-
-    //初始化
-    char endpoint[128];
-    snprintf(endpoint, 128, "http://%s:%d/hos/", hos_conf->ip, hos_conf->port);
-    g_client_config.endpointOverride = endpoint;
-    g_client_config.verifySSL = false;
-    g_client_config.enableEndpointDiscovery = true;
-    if (hos_conf->pool_thread_size > 0)
+    value = 1;
+    FS_set_para(fs2_handle, PRINT_MODE, &value, sizeof(value));
+    FS_set_para(fs2_handle, CREATE_THREAD, &value, sizeof(value));
+    FS_set_para(fs2_handle, METRIS_FORMAT, &hos_conf->fs2_fmt, sizeof(hos_conf->fs2_fmt));
+    FS_set_para(fs2_handle, STAT_CYCLE, &value, sizeof(value));
+    value = 4096;
+    FS_set_para(fs2_handle, MAX_STAT_FIELD_NUM, &value, sizeof(value));
+    if (hos_conf->fs2_ip == NULL)
     {
-        //异步模式
-        //g_client_config.executor = std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor>(std::make_shared<Aws::Utils::Threading::PooledThreadExecutor>(hos_conf->pool_thread_size, Aws::Utils::Threading::OverflowPolicy::REJECT_IMMEDIATELY)); //支持线程池
-        g_client_config.executor = std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor>(std::make_shared<Aws::Utils::Threading::PooledThreadExecutor>(hos_conf->pool_thread_size, Aws::Utils::Threading::OverflowPolicy::QUEUE_TASKS_EVENLY_ACCROSS_THREADS)); //支持线程池
+        FS_set_para(fs2_handle, STATS_SERVER_IP, "127.0.0.1", strlen("127.0.0.1"));
     }
     else
     {
-        //同步模式
+        FS_set_para(fs2_handle, STATS_SERVER_IP, hos_conf->fs2_ip, strlen(hos_conf->fs2_ip));
     }
 
-    if (hos_attempt_connection() != HOS_CLIENT_OK)
-    {
-        if (g_hos_handle.hos_func.hos_client_retry_thread_id == 0)
-        {
-            g_hos_handle.hos_func.hos_client_retry_thread_status = 0;
-            pthread_create(&g_hos_handle.hos_func.hos_client_retry_thread_id, NULL, hos_attempt_connection_exhaustively, NULL);
-        }
-    }
+    FS_set_para(fs2_handle, STATS_SERVER_PORT, &hos_conf->fs2_port, sizeof(hos_conf->fs2_port));
 
-#if 0
-    #endif
+    value = FS_OUTPUT_STATSD;
+    FS_set_para(fs2_handle, STATS_FORMAT, &value, sizeof(value));
 
-}
-
-bool hos_verify_bucket(const char *bucket)
-{
-    if (bucket == NULL)
-    {
-        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-            "debug: bucket is null");
-        return false;
-    }   
-    if (atomic_read(&g_hos_instance.status) != INSTANCE_ENABLE_STATE)
-    {
-        return false;
-    }
-    Aws::S3::Model::ListBucketsOutcome outcome = g_hos_handle.S3Client->ListBuckets();
-
-    if (outcome.IsSuccess())
-    {
-        g_hos_handle.buckets = outcome.GetResult().GetBuckets();
-
-        for (Aws::S3::Model::Bucket& new_bucket : g_hos_handle.buckets)
-        {
-            if (strcmp(new_bucket.GetName().c_str(), bucket) == 0)
-            {
-                MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, "hos_verify_bucket","debug: bucket:%s exits", bucket);
-                return true;
-            }
-        }
-    }
-    else
-    {
-        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, "hos_verify_bucket","error:%s", outcome.GetError().GetMessage().c_str());
-    }
-    return false;
+    return fs2_handle;
 }
 
 static void *fs2_statistics(void *ptr)
@@ -434,43 +405,6 @@ static void *fs2_statistics(void *ptr)
     pthread_exit(NULL);
 }
 
-static screen_stat_handle_t hos_init_fs2(char *app_name, int app_name_size)
-{
-    int value = 0;
-    screen_stat_handle_t fs2_handle = FS_create_handle();
-    hos_config_t *hos_conf = &g_hos_handle.hos_config;
-
-    FS_set_para(fs2_handle, APP_NAME, app_name, app_name_size + 1);
-    //value = 0; //true
-    //FS_set_para(fs2_handle, FLUSH_BY_DATE, &value, sizeof(value));
-    if (hos_conf->fs2_path != NULL)
-    {
-        FS_set_para(fs2_handle, OUTPUT_DEVICE, hos_conf->fs2_path, strlen(hos_conf->fs2_path) + 1);
-    }
-    value = 1;
-    FS_set_para(fs2_handle, PRINT_MODE, &value, sizeof(value));
-    FS_set_para(fs2_handle, CREATE_THREAD, &value, sizeof(value));
-    FS_set_para(fs2_handle, METRIS_FORMAT, &hos_conf->fs2_fmt, sizeof(hos_conf->fs2_fmt));
-    FS_set_para(fs2_handle, STAT_CYCLE, &value, sizeof(value));
-    value = 4096;
-    FS_set_para(fs2_handle, MAX_STAT_FIELD_NUM, &value, sizeof(value));
-    if (hos_conf->fs2_ip == NULL)
-    {
-        FS_set_para(fs2_handle, STATS_SERVER_IP, "127.0.0.1", strlen("127.0.0.1"));
-    }
-    else
-    {
-        FS_set_para(fs2_handle, STATS_SERVER_IP, hos_conf->fs2_ip, strlen(hos_conf->fs2_ip));
-    }
-
-    FS_set_para(fs2_handle, STATS_SERVER_PORT, &hos_conf->fs2_port, sizeof(hos_conf->fs2_port));
-
-    value = FS_OUTPUT_STATSD;
-    FS_set_para(fs2_handle, STATS_FORMAT, &value, sizeof(value));
-
-    return fs2_handle;
-}
-
 static void hos_expand_fs2()
 {
     fs2_info_t *fs2_info = NULL;
@@ -518,6 +452,101 @@ static void hos_expand_fs2()
     return ;
 }
 
+static void hos_client_create()
+{
+    hos_config_t *hos_conf = &g_hos_handle.hos_config;
+
+    //每调用一次此函数，那么就必须调用一次destroy函数
+    if (atomic_read(&g_hos_instance.status) != INSTANCE_UNINIT_STATE)
+    {
+        return;   
+    }
+
+    Aws::InitAPI(g_options);
+    g_client_config = new Aws::Client::ClientConfiguration();
+    g_credentials.SetAWSAccessKeyId(hos_conf->accesskeyid);
+    g_credentials.SetAWSSecretKey(hos_conf->secretkey);
+
+    //初始化
+    char endpoint[128];
+    snprintf(endpoint, 128, "http://%s:%d/hos/", hos_conf->ip, hos_conf->port);
+    g_client_config->endpointOverride.append(endpoint);
+    g_client_config->verifySSL = false;
+    g_client_config->enableEndpointDiscovery = true;
+    if (hos_conf->pool_thread_size > 0)
+    {
+        //异步模式
+        //g_client_config->executor = std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor>(std::make_shared<Aws::Utils::Threading::PooledThreadExecutor>(hos_conf->pool_thread_size, Aws::Utils::Threading::OverflowPolicy::REJECT_IMMEDIATELY)); //支持线程池
+        g_client_config->executor = std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor>(std::make_shared<Aws::Utils::Threading::PooledThreadExecutor>(hos_conf->pool_thread_size, Aws::Utils::Threading::OverflowPolicy::QUEUE_TASKS_EVENLY_ACCROSS_THREADS)); //支持线程池
+    }
+    else
+    {
+        //同步模式
+    }
+
+    #ifndef HOS_MOCK
+    g_hos_handle.S3Client = new Aws::S3::S3Client(g_credentials, *g_client_config, Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
+    #else
+    g_hos_handle.S3Client = new Aws::S3::S3ClientMock(g_credentials, *g_client_config, Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
+    #endif
+
+    atomic_add(&g_hos_handle.count, 1);
+    g_hos_handle.task_num = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
+    g_hos_handle.task_context = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
+
+    g_fd_context = (hos_fd_context_t **)calloc(hos_conf->thread_num, sizeof(hos_fd_context_t *));
+    g_fd_info = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
+    
+    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "[%s] debug: hos s3client create success.",g_client_config->endpointOverride.c_str());
+    g_hos_instance.hos_url_prefix = g_client_config->endpointOverride.c_str();
+    hos_expand_fs2();
+
+    //hos 检测服务端是否可以连接上
+    hos_attempt_connection();
+
+    if (g_hos_handle.hos_func.hos_client_retry_thread_id == 0)
+    {
+        g_hos_handle.hos_func.hos_client_retry_thread_status = 0;
+        pthread_create(&g_hos_handle.hos_func.hos_client_retry_thread_id, NULL, hos_attempt_connection_exhaustively, NULL);
+    }
+}
+
+bool hos_verify_bucket(const char *bucket)
+{
+    if (atomic_read(&g_hos_instance.status) != INSTANCE_ENABLE_STATE)
+    {
+        return false;
+    }
+
+    if (bucket == NULL)
+    {
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
+            "[%s] debug: bucket is null", g_hos_instance.hos_url_prefix);
+        return false;
+    }   
+    Aws::S3::Model::ListBucketsOutcome outcome = g_hos_handle.S3Client->ListBuckets();
+
+    if (outcome.IsSuccess())
+    {
+        g_hos_handle.buckets = outcome.GetResult().GetBuckets();
+
+        for (Aws::S3::Model::Bucket& new_bucket : g_hos_handle.buckets)
+        {
+            if (strcmp(new_bucket.GetName().c_str(), bucket) == 0)
+            {
+                MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,"[%s] debug: bucket:%s exits", g_hos_instance.hos_url_prefix, bucket);
+                return true;
+            }
+        }
+    }
+    else
+    {
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,"[%s] ErrorCode:%d, Error:%s",
+            g_hos_instance.hos_url_prefix, outcome.GetError().GetErrorType(), outcome.GetError().GetMessage().c_str());
+    }
+    return false;
+}
+
 static int hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_t stream_len,
     size_t thread_id, size_t fd, const char *bucket, const char *object)
 {
@@ -538,8 +567,8 @@ static int hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_t
         atomic_read(&g_hos_handle.task_context[thread_id]) >= hos_conf->max_request_context))
     {
         MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-            "debug: PutObjectAsync failed. [%s:%s]. task_num:%lu, task_context:%lu",
-            bucket, object, atomic_read(&g_hos_handle.task_num[thread_id]), atomic_read(&g_hos_handle.task_context[thread_id]));
+            "[%s] debug: PutObjectAsync failed. [%s:%s]. task_num:%lu, task_context:%lu",
+            g_hos_instance.hos_url_prefix, bucket, object, atomic_read(&g_hos_handle.task_num[thread_id]), atomic_read(&g_hos_handle.task_context[thread_id]));
 
         if (hos_func->fs2_info.fs2_handle)
         {
@@ -563,14 +592,14 @@ static int hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_t
         atomic_add(&g_hos_handle.task_context[thread_id], stream_len);
         //不算真正成功，需要等到PutObjectAsyncFinished的结果
         MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-            "debug: PutObjectAsync success. [%s:%s]", bucket, object);
+            "[%s%s/%s] debug: PutObjectAsync success.",g_hos_instance.hos_url_prefix, bucket, object);
         
         return HOS_CLIENT_OK;
     }
     else
     {
         MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-            "debug: PutObjectAsync failed. [%s:%s]", bucket, object);
+            "[%s%s/%s] debug: PutObjectAsync failed.",g_hos_instance.hos_url_prefix, bucket, object);
 
         if (hos_func->fs2_info.fs2_handle)
         {
@@ -601,21 +630,23 @@ static int hos_putobject_sync(Aws::S3::Model::PutObjectRequest& request, size_t 
             data_info->tx_pkts[thread_id]++;
             data_info->tx_bytes[thread_id] += stream_len;
             MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                                    "debug: PutObject success. [%s:%s] tx_pkts:%lu, tx_bytes:%lu",
-                                    bucket, object, data_info->tx_pkts[thread_id], data_info->tx_bytes[thread_id]);
+                                    "[%s%s/%s]debug: PutObject success. tx_pkts:%lu, tx_bytes:%lu",
+                                    g_hos_instance.hos_url_prefix, bucket, object, data_info->tx_pkts[thread_id], data_info->tx_bytes[thread_id]);
         }
         else
         {
             MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                                    "debug: PutObject success. [%s:%s]", bucket, object);
+                                    "[%s%s/%s] debug: PutObject success.",g_hos_instance.hos_url_prefix, bucket, object);
         }
 
         return HOS_CLIENT_OK;
     }
     else
     {
-        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-            "debug: PutObject failed. [%s:%s] cause:%s", bucket, object, Outcome.GetError().GetMessage().c_str());
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
+            "[%s%s/%s] error: PutObject failed. ErrorCode:%d, Error:%s",
+                g_hos_instance.hos_url_prefix, bucket, object,
+                Outcome.GetError().GetErrorType(), Outcome.GetError().GetMessage().c_str());
 
         if (hos_func->fs2_info.fs2_handle && hos_func->fs2_info.reserved)
         {
@@ -628,32 +659,15 @@ static int hos_putobject_sync(Aws::S3::Model::PutObjectRequest& request, size_t 
     }
 }
 
-//XXX 处于对count的考虑，删除hos_get_instance函数
-//将其放到hos_init_instance函数中去
-#if 0
 hos_instance hos_get_instance()
-{
-    if (g_hos_handle.S3Client != NULL)
-    {
-        g_hos_handle.count++;
-        g_hos_instance.result = true;
-        return &g_hos_instance;
-    }
-    memset(&g_hos_instance, 0, sizeof(g_hos_instance));
-    g_hos_instance.result = false;
-    return NULL;
-}
-#endif
-
-int hos_get_instance_status()
 {
     switch (atomic_read(&g_hos_instance.status))
     {
     case INSTANCE_UNINIT_STATE:
-        return INSTANCE_UNINIT_STATE;
+        return NULL;
     default:
         atomic_add(&g_hos_handle.count, 1);
-        return atomic_read(&g_hos_instance.status);
+        return &g_hos_instance;
     }
 }
 
@@ -676,7 +690,9 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
 {
     std::lock_guard<std::mutex> locker(m_client_lock);
     hos_config_t *hos_conf = &g_hos_handle.hos_config;
-    char hos_url[1024];
+
+    memset(&g_hos_handle, 0, sizeof(g_hos_handle));
+    memset(&g_hos_instance, 0, sizeof(g_hos_instance));
 
     if (conf_path == NULL || thread_num == 0 || module == NULL || bucket == NULL)
     {
@@ -686,25 +702,6 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
             "param error:conf_path:%s, module:%s, thread_num:%lu, bucket:%s", conf_path, module, thread_num, bucket);
         return NULL;
     }
-
-    if (atomic_read(&g_hos_instance.status) == INSTANCE_ENABLE_STATE)
-    {
-        atomic_add(&g_hos_handle.count, 1);
-        return &g_hos_instance;
-    }
-    else if (atomic_read(&g_hos_instance.status) == INSTANCE_ATTEMPT_STATE)
-    {
-        atomic_add(&g_hos_handle.count, 1);
-        return NULL;
-    }
-    else
-    {
-        // INSTANCE_UNINIT_STATE
-        //GO ON
-        memset(&g_hos_handle, 0, sizeof(g_hos_handle));
-        memset(&g_hos_instance, 0, sizeof(g_hos_instance));
-    }
-
 
     MESA_load_profile_string_nodef(conf_path, module, "hos_serverip", hos_conf->ip, INET6_ADDRSTRLEN);
 	MESA_load_profile_uint_nodef(conf_path, module, "hos_serverport", &hos_conf->port);
@@ -731,24 +728,13 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
             return NULL;
         }
 
-        snprintf(hos_url, sizeof(hos_url), "http://%s:%d/hos/", hos_conf->ip, hos_conf->port);
         hos_conf->thread_num = thread_num;
+        memcpy(hos_conf->bucket, bucket, MIN(strlen(bucket), MAX_HOS_STRING_LEN));
         hos_client_create();
-        //不验证bucket是否存在，允许中途建桶
-        #if 0
-        if (atomic_read(&g_hos_instance.status) == true)
+        if (atomic_read(&g_hos_instance.status) == INSTANCE_UNINIT_STATE)
         {
-            if(hos_verify_bucket(bucket) == false)
-            {
-                MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "error: bucket:%s not exist.", bucket);
-                hos_shutdown_instance();
-                g_hos_instance.status = INSTANCE_UNINIT_STATE;
-                g_hos_instance.error_code = HOS_BUCKET_NOT_EXIST;
-                snprintf(g_hos_instance.error_message, HOS_ERROR_MESSAGE_SIZE, "bucket:%s not exits.", bucket);
-                return NULL;
-            }
+            return NULL;
         }
-        #endif
         return &g_hos_instance;
     }
     else
@@ -762,14 +748,14 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
 
 int hos_create_bucket(const char *bucket)
 {
-    if (atomic_read(&g_hos_instance.status) == INSTANCE_ENABLE_STATE)
+    if (atomic_read(&g_hos_instance.status) != INSTANCE_ENABLE_STATE)
     {
         return HOS_INSTANCE_NOT_ENABLE;
     }
     if (bucket == NULL)
     {
-        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, "hos_create_bucket",
-            "error:bucket:%s", bucket);
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
+            "[%s] error:bucket:%s",g_hos_instance.hos_url_prefix, bucket);
         return HOS_PARAMETER_ERROR;
     }
     auto& S3Client = *g_hos_handle.S3Client;
@@ -779,7 +765,7 @@ int hos_create_bucket(const char *bucket)
     {
         if (strcmp(new_bucket.GetName().c_str(), bucket) == 0)
         {
-            MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "debug: %s was exits", bucket);
+            MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "[%s] debug: %s was exits",g_hos_instance.hos_url_prefix, bucket);
             return HOS_CLIENT_OK;
         }
     }
@@ -794,12 +780,12 @@ int hos_create_bucket(const char *bucket)
         Aws::S3::S3Errors errorcode = createBucketOutcome.GetError().GetErrorType();
         if (errorcode != Aws::S3::S3Errors::BUCKET_ALREADY_OWNED_BY_YOU)
         {
-            MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,"error: %s create failed. %s",
-                bucket, createBucketOutcome.GetError().GetMessage().c_str());
+            MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,"[%s] error: %s create failed. %s",
+                g_hos_instance.hos_url_prefix, bucket, createBucketOutcome.GetError().GetMessage().c_str());
             return (int)errorcode + 1;
         }
     }
-    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "error: %s create successful", bucket);
+    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "[%s] error: %s create successful",g_hos_instance.hos_url_prefix, bucket);
 
     return HOS_CLIENT_OK;
 }
@@ -820,9 +806,9 @@ static int hos_upload_stream(const char *bucket, const char *object, const char 
 
     if ((bucket == NULL) || (object == NULL) || (thread_id > hos_conf->thread_num))
     {
-        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, "hos_upload_stream",
-            "error: s3client:%s, bucket:%s, object:%s, thread_id:%lu, thread_num:%u",
-            g_hos_handle.S3Client?"not null":"null", bucket, object, thread_id, hos_conf->thread_num);
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
+            "[%s] error: s3client:%s, bucket:%s, object:%s, thread_id:%lu, thread_num:%u",
+            g_hos_instance.hos_url_prefix, g_hos_handle.S3Client?"not null":"null", bucket, object, thread_id, hos_conf->thread_num);
         return HOS_PARAMETER_ERROR;
     }
 
@@ -889,15 +875,15 @@ int hos_upload_file(const char *bucket, const char *file_path, put_finished_call
 
     if ((bucket == NULL) || (file_path == NULL) || (thread_id > g_hos_handle.hos_config.thread_num))
     {
-        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, "hos_upload_file",
-            "error: bucket:%s, file_path:%s, thread_id:%lu, thread_num:%u",
-            bucket, file_path, thread_id, g_hos_handle.hos_config.thread_num);
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
+            "[%s] error: bucket:%s, file_path:%s, thread_id:%lu, thread_num:%u",
+            g_hos_instance.hos_url_prefix, bucket, file_path, thread_id, g_hos_handle.hos_config.thread_num);
         return HOS_PARAMETER_ERROR;
     }
 
     if (stat(file_path, &buffer) == -1)
     {
-        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, "hos_upload_file", "error: The file:%s not exist", file_path);
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "[%s] error: The file:%s not exist",g_hos_instance.hos_url_prefix, file_path);
         return HOS_FILE_NOT_EXIST;
     }
     return hos_upload_stream(bucket, file_path, NULL, buffer.st_size, callback, userdata, thread_id);
@@ -913,9 +899,9 @@ int hos_upload_buf(const char *bucket, const char *object, const char *buf, size
     if ((bucket == NULL) || (object == NULL) || (buf == NULL) || (buf_len == 0)
         || (thread_id > g_hos_handle.hos_config.thread_num))
     {
-        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, "hos_upload_buf",
-            "bucket:%s, object:%s, buf:%s, buf_len:%lu, thread_id:%lu, thread_num:%u",
-            bucket, object, buf?"not null":"null", buf_len, thread_id, g_hos_handle.hos_config.thread_num);
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
+            "[%s] error: bucket:%s, object:%s, buf:%s, buf_len:%lu, thread_id:%lu, thread_num:%u",
+            g_hos_instance.hos_url_prefix, bucket, object, buf?"not null":"null", buf_len, thread_id, g_hos_handle.hos_config.thread_num);
         return HOS_PARAMETER_ERROR;
     }
     return hos_upload_stream(bucket, object, buf, buf_len, callback, userdata, thread_id);
@@ -930,13 +916,13 @@ int hos_open_fd(const char *bucket, const char *object, put_finished_callback ca
     if ((bucket == NULL) || (object == NULL) || (thread_id > g_hos_handle.hos_config.thread_num) || strlen(bucket) == 0 || strlen(object) == 0)
     {
         MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, 
-            "error: bucket:%s, obejct:%s, thread_id:%lu",
-            (bucket == NULL)?"null":bucket, (object == NULL)?"null":object, thread_id);
+            "[%s] error: bucket:%s, obejct:%s, thread_id:%lu",
+            g_hos_instance.hos_url_prefix, (bucket == NULL)?"null":bucket, (object == NULL)?"null":object, thread_id);
         return HOS_PARAMETER_ERROR;
     }
 
     size_t fd = ++g_fd_info[thread_id];
-    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "debug: thread_id:%lu, fd:%lu", thread_id, fd);
+    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "[%s] debug: thread_id:%lu, fd:%lu",g_hos_instance.hos_url_prefix, thread_id, fd);
     
     hos_fd_context_t info = {fd, BUFF_MODE | APPEND_MODE, (char *)bucket, (char *)object, (void *)callback, userdata, 
         NULL,/*cache*/ g_hos_handle.hos_config.cache_count, 0,/*position*/ 0,/*recive_cnt*/
@@ -963,19 +949,19 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
 
     if ((stream == NULL) || (thread_id > hos_conf->thread_num))
     {
-        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, 
-            "hos_write", "error: fd:%lu, stream:%s, stream_len:%lu, thread_id:%lu.",
-            fd, stream?"not null":"null", stream_len, thread_id);
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
+            "[%s] error: fd:%lu, stream:%s, stream_len:%lu, thread_id:%lu.",
+            g_hos_instance.hos_url_prefix, fd, stream?"not null":"null", stream_len, thread_id);
         return HOS_PARAMETER_ERROR;
     }
 
     a_fd_context = find_context_by_fd(g_fd_context[thread_id], fd);
     if (a_fd_context == NULL)
     {
-        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "error: fd info not find. thread_id:%lu, fd:%lu", thread_id, fd);
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "[%s] error: fd info not find. thread_id:%lu, fd:%lu",g_hos_instance.hos_url_prefix, thread_id, fd);
         return HOS_HASH_NOT_FIND;
     }
-    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "debug: Get fd_context, thread_id:%lu, fd:%lu", thread_id, fd);
+    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "[%s] debug: Get fd_context, thread_id:%lu, fd:%lu",g_hos_instance.hos_url_prefix, thread_id, fd);
     
     // create and configure the asynchronous put object request.
     Aws::S3::Model::PutObjectRequest request;
@@ -1023,7 +1009,8 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
     a_fd_context->cache->seekg(0, std::ios_base::end);
     upload_len = a_fd_context->cache->tellg();
     a_fd_context->cache->seekg(0, std::ios_base::beg);
-    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "debug: x-hos-posotion:%s", num);
+    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "[%s%s/%s]debug: x-hos-posotion:%s",
+        g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object, num);
     request.SetBucket(a_fd_context->bucket);
     request.SetKey(a_fd_context->object);
 
@@ -1064,17 +1051,17 @@ int hos_close_fd(size_t fd, size_t thread_id)
 
     if (thread_id > hos_conf->thread_num)
     {
-        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, "hos_close_fd",
-            "error:fd:%lu, thread_id:%lu, thread_sum:%u.",
-            fd, thread_id, hos_conf->thread_num);
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
+            "[%s] error:fd:%lu, thread_id:%lu, thread_sum:%u.",
+            g_hos_instance.hos_url_prefix, fd, thread_id, hos_conf->thread_num);
         return HOS_PARAMETER_ERROR;
     }
     a_fd_context = find_context_by_fd(g_fd_context[thread_id], fd);
     if (a_fd_context == NULL)
     {
-        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG,
-            "hos_close_fd", "debug: not find the a_fd_context of [thread:%lu fd:%lu]",
-            thread_id, fd);
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
+            "[%s] debug: not find the a_fd_context of [thread:%lu fd:%lu]",
+            g_hos_instance.hos_url_prefix, thread_id, fd);
         return HOS_CLIENT_OK; 
     }
 
@@ -1131,8 +1118,8 @@ int hos_close_fd(size_t fd, size_t thread_id)
         if (a_fd_context->mode == (BUFF_MODE | APPEND_MODE) && a_fd_context->position == a_fd_context->recive_cnt)
         {
             MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                                    "debug: [%s:%s] upload completed. [thread:%lu fd:%lu] delete",
-                                    a_fd_context->bucket, a_fd_context->object, thread_id, a_fd_context->fd);
+                                    "[%s%s/%s]debug: upload completed. [thread:%lu fd:%lu] delete",
+                                    g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object, thread_id, a_fd_context->fd);
             hos_delete_fd(fd, thread_id);
         }
     }
@@ -1153,13 +1140,14 @@ int hos_shutdown_instance()
         return HOS_INSTANCE_NOT_INIT;
     }
 
-    if (g_hos_handle.count > 0 && --g_hos_handle.count)
+    if (atomic_read(&g_hos_handle.count) > 0 && atomic_sub(&g_hos_handle.count, 1))
     {
-        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, "hos_shutdown_instance", "debug: hos client count:%lu.", g_hos_handle.count);
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "[%s] debug: hos client count:%lu.",g_hos_instance.hos_url_prefix, g_hos_handle.count);
         return HOS_CLIENT_OK;
     }
 
-    if (atomic_read(&g_hos_instance.status) == INSTANCE_ATTEMPT_STATE)
+    //退出hos服务检测线程
+    if (g_hos_handle.hos_func.hos_client_retry_thread_id != 0)
     {
         atomic_set(&g_hos_handle.hos_func.hos_client_retry_thread_status, 1);
         pthread_join(g_hos_handle.hos_func.hos_client_retry_thread_id, NULL);
@@ -1180,11 +1168,6 @@ int hos_shutdown_instance()
 
     Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
 
-    if (hos_func->fd_thread)
-    {
-        hos_func->fd_thread_status = 1;
-        pthread_join(hos_func->fd_thread, NULL);
-    }
     if (hos_func->fs2_thread)
     {
         hos_func->fs2_status = HOS_FS2_STOP;
@@ -1243,7 +1226,7 @@ int hos_shutdown_instance()
         free(g_hos_handle.task_context);
         g_hos_handle.task_context = NULL;
     }
-    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "debug: delete s3client.");
+    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "[%s] debug: delete s3client.", g_hos_instance.hos_url_prefix);
 
     if (g_fd_info)
     {
@@ -1262,12 +1245,17 @@ int hos_shutdown_instance()
         g_fd_context = NULL;
     }
 
+    if (g_client_config != NULL)
+    {
+        delete g_client_config;
+        g_client_config = NULL;
+    }
     Aws::ShutdownAPI(g_options);
     MESA_destroy_runtime_log_handle(g_hos_handle.log);
     g_hos_handle.log = NULL;
     memset(&g_hos_handle, 0 , sizeof(g_hos_handle));
-    if (g_hos_instance.hos_url_prefix)
-        free((void *)g_hos_instance.hos_url_prefix);
+    //if (g_hos_instance.hos_url_prefix)
+    //    free((void *)g_hos_instance.hos_url_prefix);
     memset(&g_hos_instance, 0, sizeof(g_hos_instance));
 
     return HOS_CLIENT_OK;

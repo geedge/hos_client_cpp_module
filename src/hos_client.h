@@ -93,9 +93,9 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
  * 返回值： hos_instance
 *************************************************************************************/
 hos_instance hos_get_instance();
-bool hos_get_init_instance_result();
-char *hos_get_upload_prefix();
 int hos_get_init_instance_errorcode();
+const char *hos_get_init_instance_errormsg();
+const char *hos_get_upload_endpoint();
 /*************************************************************************************
  * 函数名： hos_upload_file
  * 参数：   hos_instance instance    非空句柄

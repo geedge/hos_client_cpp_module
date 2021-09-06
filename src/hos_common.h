@@ -27,6 +27,10 @@
 #define MAX_HOS_CLIENT_FD_NUM 65535
 #define HOS_LOG_PATH "./tsglog/hoslog"
 
+#ifndef MIN
+#define MIN(x, y) (((x) > (y))?(y):(x))
+#endif
+
 /*hos instance */
 typedef struct hos_instance_s{
 #define INSTANCE_UNINIT_STATE 0
@@ -73,6 +77,7 @@ typedef struct hos_config_s
     char secretkey[MAX_HOS_STRING_LEN];
     char log_path[MAX_HOS_STRING_LEN];
     char fs2_path[MAX_HOS_STRING_LEN];
+    char bucket[MAX_HOS_STRING_LEN];
 
     uint32_t port;
     uint32_t fs2_port;
@@ -84,6 +89,7 @@ typedef struct hos_config_s
     uint32_t cache_count;
     uint32_t max_request_num;
     uint32_t max_request_context;
+    uint32_t reconnection_time;
 }hos_config_t;
 
 typedef struct hos_func_thread_s

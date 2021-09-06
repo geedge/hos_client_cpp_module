@@ -96,14 +96,14 @@ int main(int argc, char *argv[])
 
     printf("hos_init_instance start ...\n");
     hos_instance = hos_get_instance();
-    if (hos_instance->result == false)
+    if (hos_instance == NULL)
     {
         hos_instance = hos_init_instance(conf_file, module_name, 1, bucket);
     }
-    if (hos_instance->result == false) 
+    if (hos_instance == NULL) 
     {
         printf("error:hos_init_instance\n");
-        printf("error:%s", hos_instance->error_message);
+        printf("error:%s", hos_get_init_instance_errormsg());
         return -1;
     }  
     printf("hos_init_instance success ... \n");
