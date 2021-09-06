@@ -43,7 +43,7 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
 static void gtest_hos_instance_init(hos_instance instance)
 {
     memset(instance, 0, sizeof(hos_instance_s));
-    instance->result = true;
+    instance->status = true;
     instance->error_code = 0;
     instance->error_message[0] ='\0';
     instance->hos_url_prefix = "http://127.0.0.1:9098/hos/";
@@ -105,7 +105,7 @@ TEST(hos_open_fd, normal)
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -142,7 +142,7 @@ TEST(hos_open_fd, paramer_error)
 
     int ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -179,7 +179,7 @@ TEST(hos_open_fd, over_threadnums)
 
     int ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 

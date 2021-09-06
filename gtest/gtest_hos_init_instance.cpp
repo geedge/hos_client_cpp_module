@@ -48,7 +48,7 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
 static void gtest_hos_instance_init(hos_instance instance)
 {
     memset(instance, 0, sizeof(hos_instance_s));
-    instance->result = true;
+    instance->status = true;
     instance->error_code = 0;
     instance->error_message[0] ='\0';
     instance->hos_url_prefix = "http://127.0.0.1:9098/hos/";
@@ -88,7 +88,7 @@ TEST(hos_init_instance, param_error)
     hos_instance_s expect_hos_instance;
 
     hos_instance hos_instance = hos_init_instance(NULL, "hos_default_conf", 1, HOS_BUCKET);
-    expect_hos_instance.result = false;
+    expect_hos_instance.status = false;
     expect_hos_instance.error_code = HOS_PARAMETER_ERROR;
     const char *err_msg =  "param error:conf_path:(null), module:hos_default_conf, thread_num:1, bucket:firewall_hos_bucket";
     memcpy(expect_hos_instance.error_message, err_msg, strlen(err_msg)+1);
@@ -101,7 +101,7 @@ TEST(hos_init_instance, bucket_not_exits)
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 1, "hos_bucket_not_exits");
 
     hos_instance_s expect_hos_instance;
-    expect_hos_instance.result = false;
+    expect_hos_instance.status = false;
     expect_hos_instance.error_code = HOS_BUCKET_NOT_EXIST;
     const char *err_msg =  "bucket:hos_bucket_not_exits not exits.";
     memcpy(expect_hos_instance.error_message, err_msg, strlen(err_msg)+1);
@@ -117,7 +117,7 @@ TEST(hos_init_instance, conf_error)
 {
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_error_conf", 1, "hos_bucket_not_exits");
     hos_instance_s expect_hos_instance;
-    expect_hos_instance.result = false;
+    expect_hos_instance.status = false;
     expect_hos_instance.error_code = HOS_CONF_ERROR;
     const char *err_msg =  "hos param error:hos ip:, hos port:0, accesskeyid:, secretkey:";
     memcpy(expect_hos_instance.error_message, err_msg, strlen(err_msg)+1);
@@ -129,7 +129,7 @@ TEST(hos_init_instance, server_conn_failed)
 {
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_error_server_conf", 1, "hos_bucket_not_exits");
     hos_instance_s expect_hos_instance;
-    expect_hos_instance.result = false;
+    expect_hos_instance.status = false;
     expect_hos_instance.error_code = NETWORK_CONNECTION;
     const char *err_msg = "curlCode: 7, Couldn't connect to server";
     memcpy(expect_hos_instance.error_message, err_msg, strlen(err_msg)+1); 

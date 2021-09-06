@@ -13,7 +13,7 @@ SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fprofile-arcs -ftest-cove
 
 add_definitions(-g -W -Wall -std=c++11)
 #add_executable(gtest_hos_client gtest_hos_init_instance.cpp gtest_hos_get_instance.cpp gtest_hos_close_fd.cpp gtest_hos_open_fd.cpp)
-add_executable(gtest_hos_client CheckHosClient.cpp gtest_hos_write.cpp)
+add_executable(gtest_hos_client CheckHosClient.cpp gtest_hos_get_instance.cpp)
 #add_executable(gtest_hos_client ${SRCS})
 target_link_libraries(gtest_hos_client hos-client-cpp gtest gtest_main pthread)
 

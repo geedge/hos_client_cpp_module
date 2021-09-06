@@ -45,7 +45,7 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
 static void gtest_hos_instance_init(hos_instance instance)
 {
     memset(instance, 0, sizeof(hos_instance_s));
-    instance->result = true;
+    instance->status = true;
     instance->error_code = 0;
     instance->error_message[0] ='\0';
     instance->hos_url_prefix = "http://127.0.0.1:9098/hos/";
@@ -191,7 +191,7 @@ TEST(hos_write, normal)
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -294,7 +294,7 @@ TEST(hos_write, bucket_not_exits)
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -393,7 +393,7 @@ TEST(hos_write, sync_mode)
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -495,7 +495,7 @@ TEST(hos_write, sync_mode_bucket_not_exits)
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -542,7 +542,7 @@ TEST(hos_write, paramer_error)
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -581,7 +581,7 @@ TEST(hos_write, fd_not_find)
     
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -628,7 +628,7 @@ TEST(hos_write, over_threadnums)
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -670,7 +670,7 @@ static void *hos_function(void *ptr)
 
     {
         hos_instance = hos_get_instance();
-        if (hos_instance->result == false)
+        if (hos_instance->status == false)
         {
             hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", thread_num, HOS_BUCKET);
         }
@@ -723,7 +723,7 @@ static void *hos_function(void *ptr)
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, 0);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 

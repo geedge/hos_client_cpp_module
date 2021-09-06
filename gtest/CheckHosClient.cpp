@@ -110,7 +110,7 @@ void CheckStructGHosFdContext(hos_fd_context_t *actual, hos_fd_context_t *expect
 
 void CheckHosInstance(hos_instance actual, hos_instance expect)
 {
-    EXPECT_EQ(actual->result, expect->result);
+    EXPECT_EQ(actual->status, expect->status);
     EXPECT_EQ(actual->error_code, expect->error_code);
     EXPECT_STREQ(actual->error_message, expect->error_message);
     EXPECT_STREQ(actual->hos_url_prefix, expect->hos_url_prefix);
