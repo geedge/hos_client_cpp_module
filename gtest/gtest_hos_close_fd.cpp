@@ -43,7 +43,7 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
 static void gtest_hos_instance_init(hos_instance instance)
 {
     memset(instance, 0, sizeof(hos_instance_s));
-    instance->result = true;
+    instance->status = INSTANCE_ENABLE_STATE;
     instance->error_code = 0;
     instance->error_message[0] ='\0';
     instance->hos_url_prefix = "http://127.0.0.1:9098/hos/";
@@ -71,7 +71,7 @@ TEST(hos_close_fd, normal)
     hos_fd_context_t expect_fd_info;
     int thread_num = 2;
 
-    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", thread_num, HOS_BUCKET);
+    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", thread_num);
     gtest_hos_instance_init(&expect_hos_instance);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     gtest_hos_handle_init(&expect_hos_handle, thread_num);
@@ -90,7 +90,7 @@ TEST(hos_close_fd, normal)
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = INSTANCE_UNINIT_STATE;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -114,7 +114,7 @@ TEST(hos_close_fd, paramer_error)
     hos_fd_context_t expect_fd_info;
     int thread_num = 2;
 
-    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", thread_num, HOS_BUCKET);
+    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", thread_num);
     gtest_hos_instance_init(&expect_hos_instance);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     gtest_hos_handle_init(&expect_hos_handle, thread_num);
@@ -133,7 +133,7 @@ TEST(hos_close_fd, paramer_error)
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = INSTANCE_UNINIT_STATE;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -164,7 +164,7 @@ TEST(hos_close_fd, fd_not_exits)
     hos_fd_context_t expect_fd_info;
     int thread_num = 2;
 
-    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", thread_num, HOS_BUCKET);
+    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", thread_num);
     gtest_hos_instance_init(&expect_hos_instance);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     gtest_hos_handle_init(&expect_hos_handle, thread_num);
@@ -177,7 +177,7 @@ TEST(hos_close_fd, fd_not_exits)
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = INSTANCE_UNINIT_STATE;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 

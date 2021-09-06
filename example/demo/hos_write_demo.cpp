@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
     hos_instance = hos_get_instance();
     if (hos_instance == NULL)
     {
-        hos_instance = hos_init_instance(conf_file, module_name, 1, bucket);
+        hos_instance = hos_init_instance(conf_file, module_name, 1);
     }
     if (hos_instance == NULL) 
     {

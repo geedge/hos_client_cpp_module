@@ -48,7 +48,7 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
 static void gtest_hos_instance_init(hos_instance instance)
 {
     memset(instance, 0, sizeof(hos_instance_s));
-    instance->result = true;
+    instance->status = INSTANCE_ENABLE_STATE;
     instance->error_code = 0;
     instance->error_message[0] ='\0';
     instance->hos_url_prefix = "http://127.0.0.1:9098/hos/";
@@ -59,7 +59,8 @@ TEST(hos_init_instance, normal)
     hos_instance_s expect_hos_instance;
     hos_client_handle_t expect_hos_handle;
 
-    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 1, HOS_BUCKET);
+    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 1);
+    ASSERT_NE(hos_instance, nullptr);
     gtest_hos_instance_init(&expect_hos_instance);
     gtest_hos_handle_init(&expect_hos_handle, 1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
@@ -87,52 +88,60 @@ TEST(hos_init_instance, param_error)
 {
     hos_instance_s expect_hos_instance;
 
-    hos_instance hos_instance = hos_init_instance(NULL, "hos_default_conf", 1, HOS_BUCKET);
-    expect_hos_instance.result = false;
+    hos_instance hos_instance = hos_init_instance(NULL, "hos_default_conf", 1);
+    ASSERT_EQ(hos_instance, nullptr);
+    expect_hos_instance.status = INSTANCE_UNINIT_STATE;
     expect_hos_instance.error_code = HOS_PARAMETER_ERROR;
-    const char *err_msg =  "param error:conf_path:(null), module:hos_default_conf, thread_num:1, bucket:firewall_hos_bucket";
+    const char *err_msg =  "param error:conf_path:(null), module:hos_default_conf, thread_num:1";
     memcpy(expect_hos_instance.error_message, err_msg, strlen(err_msg)+1);
     expect_hos_instance.hos_url_prefix = NULL;
-    CheckHosInstance(hos_instance, &expect_hos_instance);
-}
-
-TEST(hos_init_instance, bucket_not_exits)
-{
-    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 1, "hos_bucket_not_exits");
-
-    hos_instance_s expect_hos_instance;
-    expect_hos_instance.result = false;
-    expect_hos_instance.error_code = HOS_BUCKET_NOT_EXIST;
-    const char *err_msg =  "bucket:hos_bucket_not_exits not exits.";
-    memcpy(expect_hos_instance.error_message, err_msg, strlen(err_msg)+1);
-    expect_hos_instance.hos_url_prefix = NULL;
-    CheckHosInstance(hos_instance, &expect_hos_instance);
-
-    hos_client_handle_t expect_hos_handle;
-    memset(&expect_hos_handle, 0, sizeof(expect_hos_handle));
-    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    CheckHosInstance(&g_hos_instance, &expect_hos_instance);
 }
 
 TEST(hos_init_instance, conf_error)
 {
-    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_error_conf", 1, "hos_bucket_not_exits");
+    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_error_conf", 1);
+    ASSERT_EQ(hos_instance, nullptr);
     hos_instance_s expect_hos_instance;
-    expect_hos_instance.result = false;
+    expect_hos_instance.status = INSTANCE_UNINIT_STATE;
     expect_hos_instance.error_code = HOS_CONF_ERROR;
     const char *err_msg =  "hos param error:hos ip:, hos port:0, accesskeyid:, secretkey:";
     memcpy(expect_hos_instance.error_message, err_msg, strlen(err_msg)+1);
     expect_hos_instance.hos_url_prefix = NULL;
-    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckHosInstance(&g_hos_instance, &expect_hos_instance);
 }
 
 TEST(hos_init_instance, server_conn_failed)
 {
-    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_error_server_conf", 1, "hos_bucket_not_exits");
     hos_instance_s expect_hos_instance;
-    expect_hos_instance.result = false;
+    hos_client_handle_t expect_hos_handle;
+
+    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_error_server_conf", 1);
+    memset(&expect_hos_instance, 0, sizeof(expect_hos_instance));
+    expect_hos_instance.status = INSTANCE_ATTEMPT_STATE;
     expect_hos_instance.error_code = NETWORK_CONNECTION;
     const char *err_msg = "curlCode: 7, Couldn't connect to server";
     memcpy(expect_hos_instance.error_message, err_msg, strlen(err_msg)+1); 
-    expect_hos_instance.hos_url_prefix = NULL;
+    expect_hos_instance.hos_url_prefix = "http://192.168.40.146:9098/hos/";
     CheckHosInstance(hos_instance, &expect_hos_instance);
+    gtest_hos_handle_init(&expect_hos_handle, 1);
+    memcpy(expect_hos_handle.hos_config.ip, "192.168.40.146", INET_ADDRSTRLEN);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+
+    int ret = hos_shutdown_instance();
+    EXPECT_EQ(ret, HOS_CLIENT_OK);
+    memset(&expect_hos_instance, 0, sizeof(expect_hos_instance));
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+
+    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
+    data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
+    free(data_info->cache);
+    free(data_info->rx_bytes);
+    free(data_info->rx_pkts);
+    free(data_info->tx_bytes);
+    free(data_info->tx_pkts);
+    free(data_info->tx_failed_bytes);
+    free(data_info->tx_failed_pkts);
+    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 }

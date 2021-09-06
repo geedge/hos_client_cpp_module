@@ -199,7 +199,34 @@ static int hos_attempt_connection()
         }
         return g_hos_instance.error_code;
     }
+    #if 0
+    //不主动验证bucket
+    //验证bucket存不存在
+    for (Aws::S3::Model::Bucket &new_bucket : g_hos_handle.buckets)
+    {
+        if (strcmp(new_bucket.GetName().c_str(), g_hos_handle.hos_config.bucket) == 0)
+        {
+            MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "[%s] debug: bucket:%s exits",
+                                    g_hos_instance.hos_url_prefix, g_hos_handle.hos_config.bucket);
+            bucket_exit = true;
+        }
+    }
+    if (bucket_exit == false)
+    {
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "[%s]error: bucket:%s not exist.",
+                                g_hos_instance.hos_url_prefix, g_hos_handle.hos_config.bucket);
+        char url[1024];
+        snprintf(url, 1024, g_hos_instance.hos_url_prefix);
+        char bucket[1024];
+        snprintf(bucket, 1024, g_hos_handle.hos_config.bucket);
+        hos_shutdown_instance();
+        atomic_set(&g_hos_handle.count, 0); //立即shutdown
+        g_hos_instance.error_code = HOS_BUCKET_NOT_EXIST;
+        snprintf(g_hos_instance.error_message, 1024, "[%s] error: bucket %s not exits.", url, bucket);
+        return HOS_BUCKET_NOT_EXIST;
+    }
     g_hos_handle.buckets = outcome.GetResult().GetBuckets();
+    #endif
     atomic_set(&g_hos_instance.status, INSTANCE_ENABLE_STATE);
     return HOS_CLIENT_OK;
 }
@@ -633,17 +660,20 @@ const char *hos_get_upload_endpoint()
     return g_hos_instance.hos_url_prefix;
 }
 
-hos_instance hos_init_instance(const char *conf_path, const char *module, size_t thread_num, const char *bucket)
+hos_instance hos_init_instance(const char *conf_path, const char *module, size_t thread_num)
 {
     std::lock_guard<std::mutex> locker(m_client_lock);
     hos_config_t *hos_conf = &g_hos_handle.hos_config;
 
-    if (conf_path == NULL || thread_num == 0 || module == NULL || bucket == NULL)
+    memset(&g_hos_handle, 0, sizeof(g_hos_handle));
+    memset(&g_hos_instance, 0, sizeof(g_hos_instance));
+
+    if (conf_path == NULL || thread_num == 0 || module == NULL)
     {
         g_hos_instance.error_code = HOS_PARAMETER_ERROR;
         snprintf(g_hos_instance.error_message, HOS_ERROR_MESSAGE_SIZE,
-            "param error:conf_path:%s, module:%s, thread_num:%lu, bucket:%s", conf_path, module, thread_num, bucket);
-        return &g_hos_instance;
+            "param error:conf_path:%s, module:%s, thread_num:%lu", conf_path, module, thread_num);
+        return NULL;
     }
 
     MESA_load_profile_string_nodef(conf_path, module, "hos_serverip", hos_conf->ip, MAX_HOS_STRING_LEN);
@@ -816,7 +846,7 @@ int hos_upload_file(const char *bucket, const char *file_path, put_finished_call
     struct stat buffer;
     if (g_hos_instance.status != INSTANCE_ENABLE_STATE)
     {
-        return HOS_INSTANCE_NOT_INIT;
+        return HOS_INSTANCE_NOT_ENABLE;
     }
 
     if ((bucket == NULL) || (file_path == NULL) || (thread_id > g_hos_handle.hos_config.thread_num))
@@ -839,7 +869,7 @@ int hos_upload_buf(const char *bucket, const char *object, const char *buf, size
 {
     if (g_hos_instance.status != INSTANCE_ENABLE_STATE)
     {
-        return HOS_INSTANCE_NOT_INIT;
+        return HOS_INSTANCE_NOT_ENABLE;
     }
 
     if ((bucket == NULL) || (object == NULL) || (buf == NULL) || (buf_len == 0)
@@ -857,7 +887,7 @@ long hos_open_fd(const char *bucket, const char *object, put_finished_callback c
 {
     if (g_hos_instance.status != INSTANCE_ENABLE_STATE)
     {
-        return HOS_INSTANCE_NOT_INIT;
+        return HOS_INSTANCE_NOT_ENABLE;
     }
     if ((bucket == NULL) || (object == NULL) || (thread_id > g_hos_handle.hos_config.thread_num) || strlen(bucket) == 0 || strlen(object) == 0)
     {
@@ -897,7 +927,7 @@ int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id
 
     if (g_hos_instance.status != INSTANCE_ENABLE_STATE)
     {
-        return HOS_INSTANCE_NOT_INIT;
+        return HOS_INSTANCE_NOT_ENABLE;
     }
 
     if ((stream == NULL) || (thread_id > hos_conf->thread_num))
@@ -996,7 +1026,7 @@ int hos_close_fd(size_t fd, size_t thread_id)
     hos_config_t *hos_conf = &g_hos_handle.hos_config;
     size_t upload_len = 0;
 
-    if (g_hos_instance.status == INSTANCE_ENABLE_STATE)
+    if (g_hos_instance.status == INSTANCE_UNINIT_STATE)
     {
         return HOS_INSTANCE_NOT_INIT;
     }

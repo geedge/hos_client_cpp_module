@@ -87,7 +87,7 @@ typedef void (*put_finished_callback)(bool result, const char *bucket, const cha
  *           thread_num 线程数    
  * 返回值：   hos 实例创建结果
 *************************************************************************************/
-hos_instance hos_init_instance(const char *conf_path, const char *module, size_t thread_num, const char *bucket);
+hos_instance hos_init_instance(const char *conf_path, const char *module, size_t thread_num);
 /*************************************************************************************
  * 函数名： hos_get_instance
  * 返回值： hos_instance 成功，result 为true

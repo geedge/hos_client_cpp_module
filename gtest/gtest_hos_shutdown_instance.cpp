@@ -48,7 +48,7 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
 static void gtest_hos_instance_init(hos_instance instance)
 {
     memset(instance, 0, sizeof(hos_instance_s));
-    instance->result = true;
+    instance->status = INSTANCE_ENABLE_STATE;
     instance->error_code = 0;
     instance->error_message[0] ='\0';
     instance->hos_url_prefix = "http://127.0.0.1:9098/hos/";
@@ -61,7 +61,7 @@ TEST(hos_shutdown_instance, normal)
     hos_client_handle_t expect_hos_handle;
     hos_fd_context_t expect_fd_info;
 
-    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 1, HOS_BUCKET);
+    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 1);
     gtest_hos_instance_init(&expect_hos_instance);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     gtest_hos_handle_init(&expect_hos_handle, 1);
@@ -69,7 +69,7 @@ TEST(hos_shutdown_instance, normal)
 
     int ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -84,7 +84,6 @@ TEST(hos_shutdown_instance, normal)
     free(data_info->tx_failed_pkts);
     memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
-    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_shutdown_instance, no_init)
@@ -99,7 +98,7 @@ TEST(hos_shutdown_instance, shutdown_more)
     hos_client_handle_t expect_hos_handle;
     hos_fd_context_t expect_fd_info;
 
-    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 1, HOS_BUCKET);
+    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 1);
     gtest_hos_instance_init(&expect_hos_instance);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     gtest_hos_handle_init(&expect_hos_handle, 1);
@@ -107,7 +106,7 @@ TEST(hos_shutdown_instance, shutdown_more)
 
     int ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -122,11 +121,9 @@ TEST(hos_shutdown_instance, shutdown_more)
     free(data_info->tx_failed_pkts);
     memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
-    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_INSTANCE_NOT_INIT);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
-    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }

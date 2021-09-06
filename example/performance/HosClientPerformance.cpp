@@ -470,7 +470,7 @@ int main(int argc, char *argv[])
         return -1;
     }
     //初始化hos instance
-    hos_instance hos_instance = hos_init_instance(conf_path, module, thread_sum, bucket);
+    hos_instance hos_instance = hos_init_instance(conf_path, module, thread_sum);
     if (hos_instance == NULL)
     {
         printf("error:hos_client_handle\n error:[%d]%s\n", hos_get_init_instance_errorcode(), hos_get_init_instance_errormsg());

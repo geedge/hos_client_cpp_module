@@ -44,7 +44,7 @@ static void gtest_hos_handle_init(hos_client_handle_t *hos_handle, int thread_nu
 static void gtest_hos_instance_init(hos_instance instance)
 {
     memset(instance, 0, sizeof(hos_instance_s));
-    instance->result = true;
+    instance->status = INSTANCE_ENABLE_STATE;
     instance->error_code = 0;
     instance->error_message[0] ='\0';
     instance->hos_url_prefix = "http://127.0.0.1:9098/hos/";
@@ -75,7 +75,7 @@ TEST(hos_upload_file, normal)
     hos_fd_context_t expect_fd_info;
     data_info_t *data_info = NULL;
 
-    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2, HOS_BUCKET);
+    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2);
     gtest_hos_instance_init(&expect_hos_instance);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     gtest_hos_handle_init(&expect_hos_handle, 2);
@@ -95,7 +95,7 @@ TEST(hos_upload_file, normal)
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -109,7 +109,6 @@ TEST(hos_upload_file, normal)
     free(data_info->tx_failed_pkts);
     memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
-    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_upload_file, param_error)
@@ -119,7 +118,7 @@ TEST(hos_upload_file, param_error)
     hos_fd_context_t expect_fd_info;
     data_info_t *data_info = NULL;
 
-    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2, HOS_BUCKET);
+    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2);
     gtest_hos_instance_init(&expect_hos_instance);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     gtest_hos_handle_init(&expect_hos_handle, 2);
@@ -133,7 +132,7 @@ TEST(hos_upload_file, param_error)
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -147,7 +146,6 @@ TEST(hos_upload_file, param_error)
     free(data_info->tx_failed_pkts);
     memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
-    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_upload_file, file_not_exits)
@@ -157,7 +155,7 @@ TEST(hos_upload_file, file_not_exits)
     hos_fd_context_t expect_fd_info;
     data_info_t *data_info = NULL;
 
-    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2, HOS_BUCKET);
+    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2);
     gtest_hos_instance_init(&expect_hos_instance);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     gtest_hos_handle_init(&expect_hos_handle, 2);
@@ -171,7 +169,7 @@ TEST(hos_upload_file, file_not_exits)
 
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -185,13 +183,12 @@ TEST(hos_upload_file, file_not_exits)
     free(data_info->tx_failed_pkts);
     memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
-    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
 
 TEST(hos_upload_file, not_init_instance)
 {
     int ret  = hos_upload_file(HOS_BUCKET, HOS_BUFF, hos_callback, (void *)"object", 0);
-    EXPECT_EQ(ret, HOS_INSTANCE_NOT_INIT);
+    EXPECT_EQ(ret, HOS_INSTANCE_NOT_ENABLE);
 }
 
 TEST(hos_upload_file, bucket_not_exits)
@@ -201,7 +198,7 @@ TEST(hos_upload_file, bucket_not_exits)
     hos_fd_context_t expect_fd_info;
     data_info_t *data_info = NULL;
 
-    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2, HOS_BUCKET);
+    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 2);
     gtest_hos_instance_init(&expect_hos_instance);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     gtest_hos_handle_init(&expect_hos_handle, 2);
@@ -221,7 +218,7 @@ TEST(hos_upload_file, bucket_not_exits)
     
     ret = hos_shutdown_instance();
     EXPECT_EQ(ret, HOS_CLIENT_OK);
-    expect_hos_instance.result = 0;
+    expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -235,5 +232,4 @@ TEST(hos_upload_file, bucket_not_exits)
     free(data_info->tx_failed_pkts);
     memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
-    EXPECT_EQ((void *)g_fd_context, (void *)NULL);
 }
