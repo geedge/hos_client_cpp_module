@@ -8,7 +8,7 @@
 void add_fd_context(hos_fd_context_t **handle, hos_fd_context_t *input)
 {
     hos_fd_context_t *value = NULL;
-    HASH_FIND_INT(*handle, (int *)&input->fd, value);
+    HASH_FIND(hh,*handle,&input->fd,sizeof(input->fd),value);
     if (value == NULL)
     {
         value = (hos_fd_context_t *)malloc(sizeof(hos_fd_context_t));
@@ -17,7 +17,7 @@ void add_fd_context(hos_fd_context_t **handle, hos_fd_context_t *input)
         value->bucket = (char *)calloc(1, strlen(input->bucket) + 1);
         memcpy(value->bucket, input->bucket, strlen(input->bucket));
         memcpy(value->object, input->object, strlen(input->object));
-        HASH_ADD_INT(*handle, fd, value);
+        HASH_ADD(hh,*handle,fd,sizeof(long),value);
     }
     else
     {
@@ -50,7 +50,7 @@ void add_fd_context(hos_fd_context_t **handle, hos_fd_context_t *input)
 hos_fd_context_t *find_context_by_fd(hos_fd_context_t *handle, size_t fd)
 {
     hos_fd_context_t *value = NULL;
-    HASH_FIND_INT(handle, &fd, value);
+    HASH_FIND(hh,handle,&fd,sizeof(long),value);
     return value;
 }
 
@@ -58,7 +58,7 @@ void delete_context_by_fd(hos_fd_context_t **handle, size_t fd)
 {
     hos_fd_context_t *value = NULL;
 
-    HASH_FIND_INT(*handle, &fd, value);
+    HASH_FIND(hh,*handle,&fd,sizeof(long),value);
     if (value)
     {
         if (value->bucket)

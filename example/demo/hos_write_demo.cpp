@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
     userdata_t data = {&finished};
     hos_instance hos_instance = NULL;
     char object[1024];
-    const char *bucket = "hos_test_not_exit_bucket";
+    const char *bucket = "hos_test_bucket";
 
     if (stat(file_name, &buffer) == -1)
     {
