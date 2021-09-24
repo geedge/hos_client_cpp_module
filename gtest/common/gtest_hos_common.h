@@ -61,7 +61,5 @@ typedef struct hos_fd_context_s hos_fd_context_t;
 
 extern struct hos_instance_s g_hos_instance;
 extern hos_client_handle_t g_hos_handle;//一个进程只允许有一个g_hos_handle
-extern hos_fd_context_t **g_fd_context;
-extern size_t (*g_fd_info)[65536]; //fd 实际从3开始， fd[thread_id][0]记录register的fd，fd[thread_id][1]记录inject的fd
 
 #endif

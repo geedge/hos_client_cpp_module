@@ -4,7 +4,6 @@
 #include <netinet/in.h>
 #include <mutex>
 #include "field_stat2.h"
-#include "hos_hash.h"
 #include <aws/core/Aws.h>
 #include <aws/s3/S3Client.h>
 #include <aws/core/auth/AWSCredentials.h>
@@ -103,9 +102,28 @@ typedef struct hos_client_handle_s
     size_t *task_context;
 }hos_client_handle_t;
 
+typedef struct hos_fd_context_s
+{
+    int  mode;
+    //hos_client_handle handle; 
+    char *bucket;
+    char *object;
+    void *callback;
+    void *userdata;
+    std::shared_ptr<Aws::IOStream> cache;
+    size_t cache_count;
+    size_t position;
+    size_t recive_cnt;
+    long cache_rest;
+    int fd_status;
+#define HOS_FD_REGISTER 0
+#define HOS_FD_CANCEL 1
+    bool reslut; /*PutObjectAsync result*/
+    const char *error; /*PutObjectAsync error message*/
+
+}hos_fd_context_t;
+
 extern struct hos_instance_s g_hos_instance;
 extern hos_client_handle_t g_hos_handle;//一个进程只允许有一个g_hos_handle
-extern hos_fd_context_t **g_fd_context;
-extern size_t *g_fd_info; //fd 实际从1开始,每个线程有独立的fd
 
 #endif

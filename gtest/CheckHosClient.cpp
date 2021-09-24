@@ -98,7 +98,6 @@ void CheckStructGHosFdContext(hos_fd_context_t *actual, hos_fd_context_t *expect
         EXPECT_EQ(actual->cache_count, expect->cache_count);
         EXPECT_EQ(actual->cache_rest, expect->cache_rest);
         EXPECT_EQ(actual->callback, expect->callback);
-        EXPECT_EQ(actual->fd, expect->fd);
         EXPECT_EQ(actual->fd_status, expect->fd_status);
         EXPECT_EQ(actual->mode, expect->mode);
         EXPECT_STREQ(actual->object, expect->object);

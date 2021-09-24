@@ -129,9 +129,9 @@ int hos_upload_buf(const char *bucket, const char *object, const char *buf, size
  *          void *data                  用户回调函数自定义数据
  *          size_t thread_id            线程ID
  *          int mode                    模式 (FILE OR BUFFER, APPEND OR NOT)
- * 返回值   int                         成功返回fd(fd >=3)，失败返回hoserros错误码
+ * 返回值   long                         成功返回fd(fd >0)，失败返回hoserros错误码
 *************************************************************************************/
-int hos_open_fd(const char *bucket, const char *object, put_finished_callback callback, void *userdata, size_t thread_id);
+long hos_open_fd(const char *bucket, const char *object, put_finished_callback callback, void *userdata, size_t thread_id);
 /*************************************************************************************
  * 函数名： hos_write
  * 参数：   size_t fd                     hos_open_fd返回的fd
