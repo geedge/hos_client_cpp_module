@@ -232,7 +232,6 @@ static void hos_client_create()
 
     g_hos_handle.buckets = outcome.GetResult().GetBuckets();
     g_hos_handle.count++;
-    g_hos_handle.executor = std::dynamic_pointer_cast<Aws::Utils::Threading::PooledThreadExecutor>(config.executor);
     g_hos_handle.task_num = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
     g_hos_handle.task_context = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
 
@@ -509,6 +508,8 @@ static int hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_t
                 atomic_add(&data_info->tx_req_num_overflow, 1);
             }
         }        
+
+        atomic_sub(&((*fd)->position), 1);
 
         return HOS_SEND_FAILED;
     }

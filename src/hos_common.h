@@ -93,7 +93,6 @@ typedef struct hos_client_handle_s
     Aws::S3::S3ClientMock *S3Client;
     #endif
     Aws::Vector<Aws::S3::Model::Bucket> buckets;
-    std::shared_ptr<Aws::Utils::Threading::PooledThreadExecutor> executor;
     size_t count;  /* 记录了有多少个对象在使用hos */
     hos_config_t hos_config;
     hos_func_thread_t hos_func;
