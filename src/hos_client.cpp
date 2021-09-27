@@ -59,7 +59,6 @@ static inline size_t get_current_ms()
 
 static int hos_delete_fd(size_t fd, size_t thread_id)
 {
-    std::lock_guard<std::mutex> locker(m_delete_lock);
     hos_fd_context_t* context = (hos_fd_context_t *)fd;
     if (context == NULL)
     {
@@ -151,6 +150,7 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
 
         if (a_fd_context->mode & APPEND_MODE)
         {
+            std::lock_guard<std::mutex> locker(m_delete_lock);
             //APPEND MODE 保留fd
             atomic_add(&(a_fd_context->recive_cnt), 1);
             if (a_fd_context->fd_status == HOS_FD_CANCEL)
@@ -1039,7 +1039,6 @@ int hos_close_fd(size_t fd, size_t thread_id)
                 data_info->cache[thread_id] = 0;
         }
     }
-    a_fd_context->fd_status = HOS_FD_CANCEL;
     a_fd_context->cache.reset();
     a_fd_context->cache = NULL;
     a_fd_context->cache_rest = hos_conf->cache_size;
@@ -1054,6 +1053,8 @@ int hos_close_fd(size_t fd, size_t thread_id)
     {
         //异步APPEND 模式,判断是否可以释放
         //异步其他模式，在PutObjectAsyncFinished出释放fd
+        std::lock_guard<std::mutex> locker(m_delete_lock);
+        a_fd_context->fd_status = HOS_FD_CANCEL;
         if (a_fd_context->mode == (BUFF_MODE | APPEND_MODE) && a_fd_context->position == a_fd_context->recive_cnt)
         {
             MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
