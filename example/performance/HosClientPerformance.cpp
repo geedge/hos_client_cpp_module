@@ -15,7 +15,6 @@ extern "C"
 #include<sys/stat.h>
 #include<math.h>
 #include<netinet/in.h>
-#include<zlog.h>
 }
 #include"../../src/hos_client.h"
 #include "MESA_handle_logger.h"
@@ -474,7 +473,7 @@ int main(int argc, char *argv[])
     hos_instance hos_instance = hos_init_instance(conf_path, module, thread_sum, bucket);
     if (hos_instance == NULL)
     {
-        printf("error:hos_client_handle\n %s\n", hos_instance->error_message);
+        printf("error:hos_client_handle\n error:[%d]%s\n", hos_get_init_instance_errorcode(), hos_get_init_instance_errormsg());
         fclose(log);
         return -1;
     }
