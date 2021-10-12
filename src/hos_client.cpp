@@ -63,7 +63,7 @@ static int hos_delete_fd(size_t fd, size_t thread_id)
     put_finished_callback callback = (put_finished_callback)context->callback;
     if (callback)
     {
-        callback(context->reslut, context->bucket, context->object, context->error, context->userdata);
+        callback(context->reslut, context->bucket, context->object, context->error, context->errorcode, context->userdata);
     }
     if (context->bucket)
     {
@@ -85,7 +85,6 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
     const Aws::S3::Model::PutObjectOutcome& outcome,
     const std::shared_ptr<const Aws::Client::AsyncCallerContext>& context)
 {
-    const char *error = NULL;
     hos_fd_context_t *a_fd_context = NULL;
     hos_func_thread_t *hos_func = &g_hos_handle.hos_func;
     data_info_t *data_info = NULL;
@@ -109,17 +108,25 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
     else
     {
         bool result = outcome.IsSuccess();
+        a_fd_context->reslut = result;
         if (!result)
         {
-            error = outcome.GetError().GetMessage().c_str();
+            a_fd_context->error = outcome.GetError().GetMessage().c_str();
+            a_fd_context->errorcode = (size_t)outcome.GetError().GetErrorType() + 1;
             MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
-                                    "error: [%s:%s] upload failed. error:%s", a_fd_context->bucket, a_fd_context->object, error);
+                                    "error: [%s:%s] upload failed. error:%s", a_fd_context->bucket, a_fd_context->object, a_fd_context->error);
 
             if (hos_func->fs2_info.fs2_handle && hos_func->fs2_info.reserved)
             {
                 data_info = (data_info_t *)hos_func->fs2_info.reserved;
                 data_info->tx_failed_pkts[thread_id]++;
                 data_info->tx_failed_bytes[thread_id] += stream_len;
+            }
+
+            put_finished_callback callback = (put_finished_callback)a_fd_context->callback;
+            if (callback)
+            {
+                callback(a_fd_context->reslut, a_fd_context->bucket, a_fd_context->object, a_fd_context->error, a_fd_context->errorcode, a_fd_context->userdata);
             }
         }
         else
@@ -139,9 +146,9 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
                 MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
                                         "debug: [%s:%s] upload success. stream size:%lu", a_fd_context->bucket, a_fd_context->object, stream_len);
             }
+            a_fd_context->error = NULL;
+            a_fd_context->errorcode = 0;
         }
-        a_fd_context->reslut = result;
-        a_fd_context->error = error;
 
         if (a_fd_context->mode & APPEND_MODE)
         {

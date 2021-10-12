@@ -52,7 +52,7 @@ int file_to_buffer(const char *file, char *buffer, int size)
     return 0;
 }
 
-void callback(bool result, const char *error, const char *bucket, const char *object, void *userdata)
+void callback(bool result, const char *bucket, const char *object, const char *errormsg, size_t errorcode, void *userdata)
 {
     return ;
 }

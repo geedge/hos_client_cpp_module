@@ -66,40 +66,44 @@ static void gtest_hos_fd_init(hos_fd_context_t *fd_info)
     fd_info->userdata = NULL;
 }
 
-static void hos_callback(bool result, const char *bucket, const char *object, const char *error, void *userdata)
+static void hos_callback(bool result, const char *bucket, const char *object, const char *error, size_t errorcode, void *userdata)
 {
     SUCCEED();
     EXPECT_EQ(result, true);
     EXPECT_STREQ(bucket, HOS_BUCKET);
     EXPECT_STREQ(object, (char *)userdata);
     EXPECT_STREQ(error, NULL);
+    EXPECT_EQ(errorcode, 0);
 }
 
-static void hos_write_buff_cb(bool result, const char *bucket, const char *object, const char *error, void *userdata)
+static void hos_write_buff_cb(bool result, const char *bucket, const char *object, const char *error, size_t errorcode, void *userdata)
 {
     SUCCEED();
     EXPECT_EQ(result, true);
     EXPECT_STREQ(bucket, HOS_BUCKET);
     EXPECT_STREQ(object, (char *)userdata);
     EXPECT_STREQ(error, NULL);
+    EXPECT_EQ(errorcode, 0);
 }
 
-static void hos_write_append_cb(bool result, const char *bucket, const char *object, const char *error, void *userdata)
+static void hos_write_append_cb(bool result, const char *bucket, const char *object, const char *error, size_t errorcode, void *userdata)
 {
     SUCCEED();
     EXPECT_EQ(result, true);
     EXPECT_STREQ(bucket, HOS_BUCKET);
     EXPECT_STREQ(object, (char *)userdata);
     EXPECT_STREQ(error, NULL);
+    EXPECT_EQ(errorcode, 0);
 }
 
-static void hos_bucket_not_exits_cb(bool result, const char *bucket, const char *object, const char *error, void *userdata)
+static void hos_bucket_not_exits_cb(bool result, const char *bucket, const char *object, const char *error, size_t errorcode, void *userdata)
 {
     SUCCEED();
     EXPECT_EQ(result, false);
     EXPECT_STREQ(bucket, "bucket_not_exits");
     EXPECT_STREQ(object, (char *)userdata);
     EXPECT_STREQ(error, "The specified bucket does not exist.");
+    EXPECT_EQ(errorcode, NO_SUCH_BUCKET);
 }
 
 TEST(hos_write, normal)

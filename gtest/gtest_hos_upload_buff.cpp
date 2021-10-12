@@ -50,22 +50,25 @@ static void gtest_hos_instance_init(hos_instance instance)
     instance->hos_url_prefix = "http://127.0.0.1:9098/hos/";
 }
 
-static void hos_callback(bool result, const char *bucket, const char *object, const char *error, void *userdata)
+static void hos_callback(bool result, const char *bucket, const char *object, const char *error, size_t errorcode, void *userdata)
 {
     SUCCEED();
     EXPECT_EQ(result, true);
     EXPECT_STREQ(bucket, HOS_BUCKET);
     EXPECT_STREQ(object, (char *)userdata);
     EXPECT_STREQ(error, NULL);
+    EXPECT_EQ(error, nullptr);
+    EXPECT_EQ(errorcode, 0);
 }
 
-static void hos_bucket_not_exits_cb(bool result, const char *bucket, const char *object, const char *error, void *userdata)
+static void hos_bucket_not_exits_cb(bool result, const char *bucket, const char *object, const char *error, size_t errorcode, void *userdata)
 {
     SUCCEED();
     EXPECT_EQ(result, false);
     EXPECT_STREQ(bucket, "bucket_not_exits");
     EXPECT_STREQ(object, (char *)userdata);
     EXPECT_STREQ(error, "The specified bucket does not exist.");
+    EXPECT_EQ(errorcode, NO_SUCH_BUCKET);
 }
 
 TEST(hos_upload_buff, normal)

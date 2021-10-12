@@ -135,6 +135,7 @@ typedef struct hos_fd_context_s
 #define HOS_FD_CANCEL 1
     bool reslut; /*PutObjectAsync result*/
     const char *error; /*PutObjectAsync error message*/
+    size_t errorcode;
 
 }hos_fd_context_t;
 
