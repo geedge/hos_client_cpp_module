@@ -136,6 +136,7 @@ typedef struct hos_fd_context_s
     bool reslut; /*PutObjectAsync result*/
     const char *error; /*PutObjectAsync error message*/
     size_t errorcode;
+    size_t thread_id;
 
 }hos_fd_context_t;
 

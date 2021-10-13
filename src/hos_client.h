@@ -21,7 +21,7 @@ enum hoserrors
 {
     HOS_PARAMETER_ERROR = -1,
     HOS_FILE_NOT_EXIST = -2,
-    HOS_HASH_NOT_FIND = -3,
+    HOS_FD_IS_INVALID = -3,
     HOS_FD_NOT_ENOUGH = -4,
     HOS_SEND_FAILED = -5,
     HOS_RUNTIME_LOG_FAILED = -6,
@@ -140,14 +140,14 @@ long hos_open_fd(const char *bucket, const char *object, put_finished_callback c
  *          size_t position             append模式下的每段内容编号
  * 返回值   int                         成功返回0，失败返回hoserror
 *************************************************************************************/
-int hos_write(size_t fd, const char *stream, size_t stream_len, size_t thread_id);
+int hos_write(size_t fd, const char *stream, size_t stream_len);
 /*************************************************************************************
  * 函数名： hos_close_fd
  * 参数：   size_t fd                   fd
  *          size_t thread_id            线程ID
  * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
-int hos_close_fd(size_t fd, size_t thread_id);
+int hos_close_fd(size_t fd);
 /*************************************************************************************
  * 函数名： hos_shutdown_instance
  * 返回值   int                         成功返回0，失败返回hoserros错误码

@@ -54,6 +54,10 @@ int file_to_buffer(const char *file, char *buffer, int size)
 
 void callback(bool result, const char *bucket, const char *object, const char *errormsg, size_t errorcode, void *userdata)
 {
+    if (!result)
+    {
+        printf("error:[%d], %s\n", errorcode, errormsg);
+    }
     return ;
 }
 
@@ -128,15 +132,15 @@ int main(int argc, char *argv[])
     printf("hos_write buff start ...\n");
     snprintf(object, 1023, "%s_write_APPEND", file_name);
     fd = hos_open_fd(bucket, object, callback, NULL, 0);
-    if (hos_write(fd, buf, buffer.st_size, 0) != HOS_CLIENT_OK)
+    if (hos_write(fd, buf, buffer.st_size) != HOS_CLIENT_OK)
     {
         printf("error: hos_write failed 1st!\n");
     }
-    if (hos_write(fd, buf, buffer.st_size, 0) != HOS_CLIENT_OK)
+    if (hos_write(fd, buf, buffer.st_size) != HOS_CLIENT_OK)
     {
         printf("error: hos_write failed 2nd!\n");
     }
-    hos_close_fd(fd, 0);
+    hos_close_fd(fd);
     printf("hos_write buff end ...\n");
 
     printf("hos_shutdown_instance start ...\n");

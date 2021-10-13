@@ -89,12 +89,12 @@ TEST(hos_open_fd, normal)
     gtest_hos_fd_init(&expect_fd_info[1]);
     CheckStructGHosFdContext((hos_fd_context_t *)fd1, &expect_fd_info[1]);
     
-    int ret = hos_close_fd(fd, 0);
+    int ret = hos_close_fd(fd);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
-    ret = hos_close_fd(fd1, 1);
+    ret = hos_close_fd(fd1);
     EXPECT_EQ(ret, HOS_CLIENT_OK);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
