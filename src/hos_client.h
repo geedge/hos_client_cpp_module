@@ -29,7 +29,7 @@ enum hoserrors
     HOS_BUCKET_NOT_EXIST = -8,
     HOS_INSTANCE_NOT_INIT = -9,
     HOS_INSTANCE_NOT_ENABLE = -10,
-
+    HOS_FD_OVER_POSITION = -11,
 };
 
 /* s3 的错误码 */
@@ -142,9 +142,8 @@ long hos_open_fd(const char *bucket, const char *object, put_finished_callback c
 *************************************************************************************/
 int hos_write(size_t fd, const char *stream, size_t stream_len);
 /*************************************************************************************
- * 函数名： hos_close_fd
+ * 函数名： hos_disable_fd
  * 参数：   size_t fd                   fd
- *          size_t thread_id            线程ID
  * 返回值   int                         成功返回0，失败返回hoserros错误码
 *************************************************************************************/
 int hos_close_fd(size_t fd);

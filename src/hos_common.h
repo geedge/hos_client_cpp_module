@@ -84,6 +84,7 @@ typedef struct hos_config_s
     uint32_t max_request_num;
     uint32_t max_request_context;
     uint32_t reconnection_time;
+    uint32_t max_position;
 }hos_config_t;
 
 typedef struct hos_func_thread_s

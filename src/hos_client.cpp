@@ -69,14 +69,14 @@ static int hos_delete_fd(size_t fd, size_t thread_id)
     {
         free(context->bucket);
         context->bucket = NULL;
-        }
-        if (context->object)
-        {
-            free(context->object);
-            context->object = NULL;
-        }
-        free(context);
-    
+    }
+    if (context->object)
+    {
+        free(context->object);
+        context->object = NULL;
+    }
+    free(context);
+
     return HOS_CLIENT_OK;
 }
 
@@ -699,6 +699,7 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
     MESA_load_profile_uint_def(conf_path, module, "hos_request_num", &hos_conf->max_request_num, 100);
     MESA_load_profile_uint_def(conf_path, module, "hos_request_context", &hos_conf->max_request_context, 10240000);
     MESA_load_profile_uint_def(conf_path, module, "hos_reconnect_time", &hos_conf->reconnection_time, 1);
+    MESA_load_profile_uint_def(conf_path, module, "hos_max_position", &hos_conf->max_position, 100000);
     if (strlen(hos_conf->ip) && hos_conf->port && strlen(hos_conf->accesskeyid) && strlen(hos_conf->secretkey))
     {
         g_hos_handle.log = MESA_create_runtime_log_handle(hos_conf->log_path, hos_conf->log_level);
@@ -957,6 +958,14 @@ int hos_write(size_t fd, const char *stream, size_t stream_len)
         return HOS_PARAMETER_ERROR;
     }
 
+    if (a_fd_context->position >= hos_conf->max_position)
+    {
+        MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, 
+            __FUNCTION__, "error: [%s%s/%s] upload times over max times[%d] ",
+            g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object, hos_conf->max_position);
+
+        return HOS_FD_OVER_POSITION;
+    }
     // create and configure the asynchronous put object request.
     Aws::S3::Model::PutObjectRequest request;
 
@@ -993,7 +1002,7 @@ int hos_write(size_t fd, const char *stream, size_t stream_len)
     request.SetBody(a_fd_context->cache);
 
     // add headers
-    atomic_add(&(a_fd_context->position), 100001);
+    atomic_add(&(a_fd_context->position), 1);
     snprintf(num, 128, "%lu", atomic_read(&(a_fd_context->position)));
     Aws::Map<Aws::String, Aws::String> headers;
     headers["x-hos-upload-type"] = "append";
@@ -1073,7 +1082,7 @@ int hos_close_fd(size_t fd)
             request.SetBody(a_fd_context->cache);
 
             // add headers
-            atomic_add(&(a_fd_context->position), 100001);
+            atomic_add(&(a_fd_context->position), 1);
             snprintf(num, 128, "%lu", atomic_read(&(a_fd_context->position)));
             Aws::Map<Aws::String, Aws::String> headers;
             headers["x-hos-upload-type"] = "append";
