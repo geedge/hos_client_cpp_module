@@ -31,6 +31,7 @@ typedef struct hos_instance_s{
 #define INSTANCE_UNINIT_STATE 0
 #define INSTANCE_ATTEMPT_STATE 1
 #define INSTANCE_ENABLE_STATE 2
+#define INSTANCE_DISABLE_STATE 3
   int status;
   int  error_code;
   char error_message[1024];

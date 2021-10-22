@@ -199,8 +199,7 @@ static int hos_attempt_connection()
         else
         {
             atomic_set(&g_hos_handle.count, 0);//立即shutdown
-            hos_shutdown_instance();
-            g_hos_instance.status =  INSTANCE_UNINIT_STATE;
+            g_hos_instance.status =  INSTANCE_DISABLE_STATE;
             g_hos_instance.error_code = (size_t)outcome.GetError().GetErrorType() + 1;
             snprintf(g_hos_instance.error_message, HOS_ERROR_MESSAGE_SIZE, outcome.GetError().GetMessage().c_str());
         }
@@ -470,16 +469,21 @@ static void hos_client_create()
     g_hos_handle.S3Client = new Aws::S3::S3ClientMock(g_credentials, *g_client_config, Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
     #endif
 
+    g_hos_instance.hos_url_prefix = g_client_config->endpointOverride.c_str();
+    //hos 检测服务端是否可以连接上
+    int ret = hos_attempt_connection();
+    if (ret != HOS_CLIENT_OK && ret != NETWORK_CONNECTION)
+    {
+        return;
+    }
+
     atomic_add(&g_hos_handle.count, 1);
     g_hos_handle.task_num = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
     g_hos_handle.task_context = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
 
-    g_hos_instance.hos_url_prefix = g_client_config->endpointOverride.c_str();
     MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_INFO, __FUNCTION__, "[%s] debug: hos s3client create success.",g_hos_instance.hos_url_prefix);
     hos_expand_fs2();
 
-    //hos 检测服务端是否可以连接上
-    hos_attempt_connection();
 
     if (g_hos_handle.hos_func.hos_client_retry_thread_id == 0)
     {
@@ -712,8 +716,9 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
 
         hos_conf->thread_num = thread_num;
         hos_client_create();
-        if (atomic_read(&g_hos_instance.status) == INSTANCE_UNINIT_STATE)
+        if (atomic_read(&g_hos_instance.status) == INSTANCE_DISABLE_STATE)
         {
+            hos_shutdown_instance();
             return NULL;
         }
         return &g_hos_instance;
@@ -1165,6 +1170,10 @@ int hos_shutdown_instance()
     while(1)
     {
         task_num = 0;
+        if (g_hos_handle.task_num == NULL)
+        {
+            break;
+        }
         for (uint32_t i = 0; i < g_hos_handle.hos_config.thread_num; i++)
         {
             task_num += atomic_read(&g_hos_handle.task_num[i]);
