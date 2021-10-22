@@ -892,10 +892,11 @@ int hos_upload_buf(const char *bucket, const char *object, const char *buf, size
     return hos_upload_stream(bucket, object, buf, buf_len, callback, userdata, thread_id);
 }
 
-long hos_open_fd(const char *bucket, const char *object, put_finished_callback callback, void *userdata, size_t thread_id)
+int hos_open_fd(const char *bucket, const char *object, put_finished_callback callback, void *userdata, size_t thread_id, size_t *fd)
 {
     if (g_hos_instance.status != INSTANCE_ENABLE_STATE)
     {
+        *fd = 0;
         return HOS_INSTANCE_NOT_ENABLE;
     }
     if ((bucket == NULL) || (object == NULL) || (thread_id > g_hos_handle.hos_config.thread_num) || strlen(bucket) == 0 || strlen(object) == 0)
@@ -903,6 +904,7 @@ long hos_open_fd(const char *bucket, const char *object, put_finished_callback c
         MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, "hos_open_fd", 
             "error: [%s] bucket:%s, obejct:%s, thread_id:%lu", g_hos_instance.hos_url_prefix,
             (bucket == NULL)?"null":bucket, (object == NULL)?"null":object, thread_id);
+        *fd = 0;
         return HOS_PARAMETER_ERROR;
     }
 
@@ -922,7 +924,8 @@ long hos_open_fd(const char *bucket, const char *object, put_finished_callback c
 
     MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, "hos_open_fd", "debug: [%s] thread_id:%lu, fd:%lu", g_hos_instance.hos_url_prefix, thread_id, (long)&hos_fd);
 
-    return (long)hos_fd;
+    *fd = (size_t)hos_fd;
+    return HOS_CLIENT_OK;
 }
 
 int hos_write(size_t fd, const char *stream, size_t stream_len)

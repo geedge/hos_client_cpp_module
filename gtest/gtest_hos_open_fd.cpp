@@ -77,13 +77,15 @@ TEST(hos_open_fd, normal)
     gtest_hos_handle_init(&expect_hos_handle, 2);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
-    size_t fd = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0);
+    size_t fd = 0;
+    int err = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0, &fd);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[0]);
     CheckStructGHosFdContext((hos_fd_context_t *)fd, &expect_fd_info[0]);
     
-    size_t fd1 = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 1);
+    size_t fd1 = 0;
+    err = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 1, &fd1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[1]);
@@ -129,8 +131,9 @@ TEST(hos_open_fd, paramer_error)
     gtest_hos_handle_init(&expect_hos_handle, 2);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     
-    int fd = hos_open_fd(NULL, "object", NULL, NULL, 0);
-    EXPECT_EQ(fd, HOS_PARAMETER_ERROR);
+    size_t fd = 0;
+    int err = hos_open_fd(NULL, "object", NULL, NULL, 0, &fd);
+    EXPECT_EQ(err, HOS_PARAMETER_ERROR);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
@@ -164,8 +167,9 @@ TEST(hos_open_fd, over_threadnums)
     gtest_hos_handle_init(&expect_hos_handle, 2);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
-    int fd = hos_open_fd(HOS_CONF, "object", NULL, NULL, 3);
-    EXPECT_EQ(fd, HOS_PARAMETER_ERROR);
+    size_t fd = 0;
+    int err = hos_open_fd(HOS_CONF, "object", NULL, NULL, 3, &fd);
+    EXPECT_EQ(err, HOS_PARAMETER_ERROR);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
@@ -190,6 +194,7 @@ TEST(hos_open_fd, over_threadnums)
 
 TEST(hos_open_fd, not_init_instance)
 {
-    int fd = hos_open_fd(HOS_CONF, "object", NULL, NULL, 0);
-    EXPECT_EQ(fd, HOS_INSTANCE_NOT_ENABLE);
+    size_t fd = 0;
+    int err = hos_open_fd(HOS_CONF, "object", NULL, NULL, 0, &fd);
+    EXPECT_EQ(err, HOS_INSTANCE_NOT_ENABLE);
 }

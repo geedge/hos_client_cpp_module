@@ -77,7 +77,8 @@ TEST(hos_close_fd, normal)
     gtest_hos_handle_init(&expect_hos_handle, thread_num);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
-    long fd = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0);
+    size_t fd = 0;
+    int err = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0, &fd);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info);
@@ -121,7 +122,8 @@ TEST(hos_close_fd, paramer_error)
     expect_hos_handle.hos_config.thread_num=2;
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
-    long fd = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0);
+    size_t fd = 0;
+    int err = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0, &fd);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info);

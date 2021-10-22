@@ -122,6 +122,7 @@ static int upload_file(char *file, char *buff, int buff_len, thread_info_t *thre
     double variance = 0.00;
     double average = 0.00;
     long time = 0;
+    int err = 0;
     //写文件
     
     //clock_gettime(CLOCK_MONOTONIC, &tstart);
@@ -154,7 +155,7 @@ static int upload_file(char *file, char *buff, int buff_len, thread_info_t *thre
     for (i = 0; i < g_test_count; i++)
     {
         clock_gettime(CLOCK_MONOTONIC, &tstart);
-        fd[i] = hos_open_fd(thread_info->bucket, thread_info->object, callback, NULL, thread_info->thread_num);
+        err = hos_open_fd(thread_info->bucket, thread_info->object, callback, NULL, thread_info->thread_num, &fd[i]);
         if (hos_write(fd[i], file, 0) != HOS_CLIENT_OK)
         {
             printf("error:hos_write file:%s\n", file);
@@ -210,10 +211,11 @@ static int upload_buff(char * buff, int buff_len, thread_info_t *thread_info, ch
     double variance = 0.00;
     double average = 0.00;
     long record[30000] = {0};
+    int err = 0;
 
     if (g_mode & APPEND_MODE)
     {
-        fd[0] = hos_open_fd(thread_info->bucket, thread_info->object, callback, NULL, thread_info->thread_num);
+        err = hos_open_fd(thread_info->bucket, thread_info->object, callback, NULL, thread_info->thread_num, &fd[0]);
 
         for (i = 0; i < g_test_count; i++)
         {
