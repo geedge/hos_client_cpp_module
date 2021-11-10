@@ -91,7 +91,7 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
     const Aws::String& uuid = context->GetUUID();
     size_t thread_id, fd, stream_len;
 
-    sscanf(uuid.c_str(), "%lu %lu %lu", &thread_id, &fd, &stream_len);
+    sscanf(uuid.c_str(), "%zu %zu %zu", &thread_id, &fd, &stream_len);
     a_fd_context = (hos_fd_context_t *)fd;
     if (a_fd_context == NULL)
     {
@@ -250,23 +250,6 @@ static void *hos_attempt_connection_exhaustively(void *ptr)
 
 static void *fs2_statistics(void *ptr)
 {
-    size_t i = 0;
-    size_t rx_pkts_sum = 0;
-    size_t rx_bytes_sum = 0;
-    size_t tx_pkts_sum = 0;
-    size_t tx_bytes_sum = 0;
-    size_t tx_failed_bytes_sum = 0;
-    size_t tx_failed_pkts_sum = 0;
-    size_t cache_sum = 0;
-    size_t req_overflow_sum = 0;
-    size_t rx_pkts_interval = 0;
-    size_t rx_bytes_interval = 0;
-    size_t tx_pkts_interval = 0;
-    size_t tx_bytes_interval = 0;
-    size_t tx_failed_bytes_interval = 0;
-    size_t tx_failed_pkts_interval = 0;
-    size_t cache_interval = 0;
-    size_t req_overflow_interval = 0;
     size_t rx_pkts_last = 0;
     size_t rx_bytes_last = 0;
     size_t tx_pkts_last = 0;
@@ -278,7 +261,6 @@ static void *fs2_statistics(void *ptr)
     fs2_info_t *fs2_info = NULL; 
     hos_config_t *hos_conf = &g_hos_handle.hos_config;
     hos_func_thread_t *hos_func = &g_hos_handle.hos_func;
-    size_t task_num = 0;
 
     while(1)
     {
@@ -288,17 +270,17 @@ static void *fs2_statistics(void *ptr)
         }
 
         //pkts and bytes info
-        rx_pkts_sum = 0;
-        rx_bytes_sum = 0;
-        tx_pkts_sum = 0;
-        tx_bytes_sum = 0;
-        tx_failed_bytes_sum = 0;
-        tx_failed_pkts_sum = 0;
-        cache_sum = 0;
+        size_t rx_pkts_sum = 0;
+        size_t rx_bytes_sum = 0;
+        size_t tx_pkts_sum = 0;
+        size_t tx_bytes_sum = 0;
+        size_t tx_failed_bytes_sum = 0;
+        size_t tx_failed_pkts_sum = 0;
+        size_t cache_sum = 0;
 
         fs2_info = &hos_func->fs2_info;
         data_info_t *data_info = (data_info_t *)fs2_info->reserved;
-        for (i = 0; i < hos_conf->thread_num; i++)
+        for (uint32_t i = 0; i < hos_conf->thread_num; i++)
         {
             rx_pkts_sum += data_info->rx_pkts[i];
             rx_bytes_sum += data_info->rx_bytes[i];
@@ -307,19 +289,17 @@ static void *fs2_statistics(void *ptr)
             tx_failed_bytes_sum += data_info->tx_failed_bytes[i];
             tx_failed_pkts_sum += data_info->tx_failed_pkts[i];
             cache_sum += data_info->cache[i];
-
-            task_num += atomic_read(&g_hos_handle.task_num[i]);
         }
-        req_overflow_sum = atomic_read(&data_info->tx_req_num_overflow);
+        size_t req_overflow_sum = atomic_read(&data_info->tx_req_num_overflow);
 
-        rx_pkts_interval = rx_pkts_sum - rx_pkts_last;
-        rx_bytes_interval = rx_bytes_sum - rx_bytes_last;
-        tx_pkts_interval = tx_pkts_sum - tx_pkts_last;
-        tx_bytes_interval = tx_bytes_sum - tx_bytes_last;
-        tx_failed_pkts_interval = tx_failed_pkts_sum - tx_failed_pkts_last;
-        tx_failed_bytes_interval = tx_failed_bytes_sum - tx_failed_bytes_last;
-        cache_interval = cache_sum - cache_last;
-        req_overflow_interval = req_overflow_sum - req_overflow_last;
+        size_t rx_pkts_interval = rx_pkts_sum - rx_pkts_last;
+        size_t rx_bytes_interval = rx_bytes_sum - rx_bytes_last;
+        size_t tx_pkts_interval = tx_pkts_sum - tx_pkts_last;
+        size_t tx_bytes_interval = tx_bytes_sum - tx_bytes_last;
+        size_t tx_failed_pkts_interval = tx_failed_pkts_sum - tx_failed_pkts_last;
+        size_t tx_failed_bytes_interval = tx_failed_bytes_sum - tx_failed_bytes_last;
+        size_t cache_interval = cache_sum - cache_last;
+        size_t req_overflow_interval = req_overflow_sum - req_overflow_last;
 
         rx_pkts_last = rx_pkts_sum;
         rx_bytes_last = rx_bytes_sum;
@@ -543,7 +523,7 @@ static int hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_t
     //设置回调函数
     std::shared_ptr<Aws::Client::AsyncCallerContext> context = 
         Aws::MakeShared<Aws::Client::AsyncCallerContext>("");
-    sprintf(buf, "%lu %lu %lu", thread_id, (size_t)*fd, stream_len);
+    sprintf(buf, "%zu %zu %zu", thread_id, (size_t)*fd, stream_len);
     context->SetUUID(buf);
 
     if (hos_conf->max_request_num && hos_conf->max_request_context && 
@@ -683,7 +663,7 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
     {
         g_hos_instance.error_code = HOS_PARAMETER_ERROR;
         snprintf(g_hos_instance.error_message, HOS_ERROR_MESSAGE_SIZE,
-            "param error:conf_path:%s, module:%s, thread_num:%lu", (conf_path?conf_path:"NULL"), (module?(module:"NULL")), thread_num);
+            "param error:conf_path:%s, module:%s, thread_num:%zu", (conf_path?conf_path:"NULL"), (module?module:"NULL"), thread_num);
         return NULL;
     }
 
@@ -941,7 +921,6 @@ int hos_write(size_t fd, const char *stream, size_t stream_len)
     data_info_t *data_info = NULL;
     hos_config_t *hos_conf = &g_hos_handle.hos_config;
     hos_func_thread_t *hos_func = &g_hos_handle.hos_func;
-    size_t upload_len = 0;
     size_t thread_id = 0;
 
     if (g_hos_instance.status != INSTANCE_ENABLE_STATE)
@@ -1011,14 +990,14 @@ int hos_write(size_t fd, const char *stream, size_t stream_len)
 
     // add headers
     atomic_add(&(a_fd_context->position), 1);
-    snprintf(num, 128, "%lu", atomic_read(&(a_fd_context->position)));
+    snprintf(num, 128, "%zu", atomic_read(&(a_fd_context->position)));
     Aws::Map<Aws::String, Aws::String> headers;
     headers["x-hos-upload-type"] = "append";
     headers["x-hos-position"] = num;
     request.SetMetadata(headers);
 
     a_fd_context->cache->seekg(0, std::ios_base::end);
-    upload_len = a_fd_context->cache->tellg();
+    size_t upload_len = a_fd_context->cache->tellg();
     a_fd_context->cache->seekg(0, std::ios_base::beg);
     MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "debug: [%s] x-hos-posotion:%s", g_hos_instance.hos_url_prefix, num);
     request.SetBucket(a_fd_context->bucket);
@@ -1052,7 +1031,6 @@ int hos_close_fd(size_t fd)
     hos_fd_context_t *a_fd_context = NULL;
     char num[128];
     hos_config_t *hos_conf = &g_hos_handle.hos_config;
-    size_t upload_len = 0;
     size_t thread_id = 0;
 
     if (g_hos_instance.status == INSTANCE_UNINIT_STATE)
@@ -1091,13 +1069,13 @@ int hos_close_fd(size_t fd)
 
             // add headers
             atomic_add(&(a_fd_context->position), 1);
-            snprintf(num, 128, "%lu", atomic_read(&(a_fd_context->position)));
+            snprintf(num, 128, "%zu", atomic_read(&(a_fd_context->position)));
             Aws::Map<Aws::String, Aws::String> headers;
             headers["x-hos-upload-type"] = "append";
             headers["x-hos-position"] = num;
             request.SetMetadata(headers);
             a_fd_context->cache->seekg(0, std::ios_base::end);
-            upload_len = a_fd_context->cache->tellg();
+            size_t upload_len = a_fd_context->cache->tellg();
             a_fd_context->cache->seekg(0, std::ios_base::beg);
 
             if (hos_conf->pool_thread_size > 0)
@@ -1144,9 +1122,7 @@ int hos_close_fd(size_t fd)
 int hos_shutdown_instance()
 {
     std::lock_guard<std::mutex> locker(m_instance_lock);
-    size_t i = 0;
     hos_func_thread_t *hos_func = &g_hos_handle.hos_func;
-    size_t task_num = 0;
 
     if (atomic_read(&g_hos_instance.status) == INSTANCE_UNINIT_STATE)
     {
@@ -1169,7 +1145,7 @@ int hos_shutdown_instance()
     //先等待所有的task完成
     while(1)
     {
-        task_num = 0;
+        size_t task_num = 0;
         if (g_hos_handle.task_num == NULL)
         {
             break;
@@ -1194,7 +1170,7 @@ int hos_shutdown_instance()
     {
         hos_func->fs2_status = HOS_FS2_STOP;
         pthread_join(hos_func->fs2_thread, NULL);
-        for (i = 0; i < FS2_RECORD_EVENTS; i++)
+        for (int i = 0; i < FS2_RECORD_EVENTS; i++)
         {
             screen_stat_handle_t *fs2_handle = &hos_func->fs2_info.fs2_handle;
             if (*fs2_handle)

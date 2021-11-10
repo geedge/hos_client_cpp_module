@@ -3,6 +3,7 @@ project(gtest_hos_client)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} SRCS)
 
 include_directories("/opt/MESA/include")
+include_directories("/opt/MESA/include/MESA")
 link_directories("/opt/MESA/lib")
 #link_libraries(hos-client-cpp gtest gtest_main pthread)
 
