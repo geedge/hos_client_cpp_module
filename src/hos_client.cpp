@@ -448,7 +448,7 @@ static void hos_client_create()
 
     //初始化
     char endpoint[128];
-    snprintf(endpoint, 128, "http://%s:%d/hos/", hos_conf->ip, hos_conf->port);
+    snprintf(endpoint, 128, "http://%s:%u/hos/", hos_conf->ip, hos_conf->port);
     g_client_config->endpointOverride.append(endpoint);
     g_client_config->verifySSL = false;
     g_client_config->enableEndpointDiscovery = true;
@@ -543,7 +543,7 @@ static int hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_t
     //设置回调函数
     std::shared_ptr<Aws::Client::AsyncCallerContext> context = 
         Aws::MakeShared<Aws::Client::AsyncCallerContext>("");
-    sprintf(buf, "%lu %lu %lu", thread_id, (long)*fd, stream_len);
+    sprintf(buf, "%lu %lu %lu", thread_id, (size_t)*fd, stream_len);
     context->SetUUID(buf);
 
     if (hos_conf->max_request_num && hos_conf->max_request_context && 
@@ -683,7 +683,7 @@ hos_instance hos_init_instance(const char *conf_path, const char *module, size_t
     {
         g_hos_instance.error_code = HOS_PARAMETER_ERROR;
         snprintf(g_hos_instance.error_message, HOS_ERROR_MESSAGE_SIZE,
-            "param error:conf_path:%s, module:%s, thread_num:%lu", conf_path, module, thread_num);
+            "param error:conf_path:%s, module:%s, thread_num:%lu", (conf_path?conf_path:"NULL"), (module?(module:"NULL")), thread_num);
         return NULL;
     }
 
