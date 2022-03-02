@@ -10,6 +10,7 @@ struct hos_instance_s;
 typedef struct hos_instance_s *hos_instance;
 
 #define HOS_CLIENT_OK 0
+#define HOS_IN_CACHE 0xFF
 
 /* fd mode */
 #define FILE_MODE   0x00
@@ -30,6 +31,7 @@ enum hoserrors
     HOS_INSTANCE_NOT_INIT = -9,
     HOS_INSTANCE_NOT_ENABLE = -10,
     HOS_FD_OVER_POSITION = -11,
+    HOS_FD_CLOSE_BUT_SEND_FAILED = -12,
 };
 
 /* s3 的错误码 */

@@ -137,7 +137,7 @@ TEST(hos_write, normal)
     CheckStructGHosFdContext((hos_fd_context_t *)fd, &expect_fd_info[0]);
 
     int ret = hos_write(fd, HOS_BUFF, strlen(HOS_BUFF));
-    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_IN_CACHE);
     expect_fd_info[0].fd_status = 2;
     data_info->rx_bytes[0] += strlen(HOS_BUFF);
     data_info->rx_pkts[0] +=1;
@@ -157,7 +157,7 @@ TEST(hos_write, normal)
     CheckStructGHosFdContext((hos_fd_context_t *)fd1, &expect_fd_info[1]);
 
     ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF));
-    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_IN_CACHE);
     data_info->rx_bytes[1] += strlen(HOS_BUFF);
     data_info->rx_pkts[1] +=1;
     data_info->cache[1] += strlen(HOS_BUFF);
@@ -169,7 +169,7 @@ TEST(hos_write, normal)
     ASSERT_TRUE(((hos_fd_context_t *)fd1)->cache != NULL); 
 
     ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF));
-    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_IN_CACHE);
     data_info->rx_bytes[1] += strlen(HOS_BUFF);
     data_info->rx_pkts[1] +=1;
     data_info->cache[1] += strlen(HOS_BUFF);
@@ -241,7 +241,7 @@ TEST(hos_write, bucket_not_exits)
     CheckStructGHosFdContext((hos_fd_context_t *)fd, &expect_fd_info[0]);
     
     int ret = hos_write(fd, HOS_BUFF, strlen(HOS_BUFF));
-    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_IN_CACHE);
     data_info->rx_bytes[0] = strlen(HOS_BUFF);
     data_info->rx_pkts[0] += 1;
     data_info->cache[0] = strlen(HOS_BUFF);
@@ -260,7 +260,7 @@ TEST(hos_write, bucket_not_exits)
     CheckStructGHosFdContext((hos_fd_context_t *)fd1, &expect_fd_info[1]);
 
     ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF));
-    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_IN_CACHE);
     data_info->cache[1] += strlen(HOS_BUFF);
     data_info->rx_bytes[1] += strlen(HOS_BUFF);
     data_info->rx_pkts[1] += 1;
@@ -272,7 +272,7 @@ TEST(hos_write, bucket_not_exits)
     ASSERT_TRUE(((hos_fd_context_t *)fd1)->cache != NULL); 
     
     ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF));
-    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_IN_CACHE);
     data_info->cache[1] += strlen(HOS_BUFF);
     data_info->rx_bytes[1] += strlen(HOS_BUFF);
     data_info->rx_pkts[1] += 1;
@@ -341,7 +341,7 @@ TEST(hos_write, sync_mode)
     CheckStructGHosFdContext((hos_fd_context_t *)fd, &expect_fd_info[0]);
     
     int ret = hos_write(fd, HOS_BUFF, strlen(HOS_BUFF));
-    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_IN_CACHE);
     data_info->rx_bytes[0] += strlen(HOS_BUFF);
     data_info->rx_pkts[0] += 1;
     data_info->cache[0] += strlen(HOS_BUFF);
@@ -357,7 +357,7 @@ TEST(hos_write, sync_mode)
     CheckStructGHosFdContext((hos_fd_context_t *)fd1, &expect_fd_info[1]);
 
     ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF));
-    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_IN_CACHE);
     data_info->rx_bytes[1] += strlen(HOS_BUFF);
     data_info->rx_pkts[1] += 1;
     data_info->cache[1] += strlen(HOS_BUFF);
@@ -369,7 +369,7 @@ TEST(hos_write, sync_mode)
     ASSERT_TRUE(((hos_fd_context_t *)fd1)->cache != NULL); 
 
     ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF));
-    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_IN_CACHE);
     data_info->rx_bytes[1] += strlen(HOS_BUFF);
     data_info->rx_pkts[1] += 1;
     data_info->cache[1] += strlen(HOS_BUFF);
@@ -439,7 +439,7 @@ TEST(hos_write, sync_mode_bucket_not_exits)
     CheckStructGHosFdContext((hos_fd_context_t *)fd, &expect_fd_info[0]);
 
     int ret = hos_write(fd, HOS_BUFF, strlen(HOS_BUFF));
-    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_IN_CACHE);
     expect_fd_info[0].fd_status = 2;
     data_info->rx_bytes[0] += strlen(HOS_BUFF);
     data_info->rx_pkts[0] += 1;
@@ -457,7 +457,7 @@ TEST(hos_write, sync_mode_bucket_not_exits)
     CheckStructGHosFdContext((hos_fd_context_t *)fd1, &expect_fd_info[1]);
 
     ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF));
-    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_IN_CACHE);
     data_info->rx_bytes[1] += strlen(HOS_BUFF);
     data_info->rx_pkts[1] += 1;
     data_info->cache[1] += strlen(HOS_BUFF);
@@ -469,7 +469,7 @@ TEST(hos_write, sync_mode_bucket_not_exits)
     ASSERT_TRUE(((hos_fd_context_t *)fd1)->cache != NULL); 
 
     ret = hos_write(fd1, HOS_BUFF, strlen(HOS_BUFF));
-    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_IN_CACHE);
     data_info->rx_bytes[1] += strlen(HOS_BUFF);
     data_info->rx_pkts[1] += 1;
     data_info->cache[1] += strlen(HOS_BUFF);
