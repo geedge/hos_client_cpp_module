@@ -59,7 +59,6 @@ TEST(hos_shutdown_instance, normal)
 {
     hos_instance_s expect_hos_instance;
     hos_client_handle_t expect_hos_handle;
-    hos_fd_context_t expect_fd_info;
 
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 1);
     gtest_hos_instance_init(&expect_hos_instance);
@@ -68,7 +67,7 @@ TEST(hos_shutdown_instance, normal)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     int ret = hos_shutdown_instance();
-    EXPECT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_CLIENT_OK);
     expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
@@ -89,14 +88,13 @@ TEST(hos_shutdown_instance, normal)
 TEST(hos_shutdown_instance, no_init)
 {
     int ret = hos_shutdown_instance();
-    EXPECT_EQ(ret, HOS_INSTANCE_NOT_INIT);
+    ASSERT_EQ(ret, HOS_INSTANCE_NOT_INIT);
 }
 
 TEST(hos_shutdown_instance, shutdown_more)
 {
     hos_instance_s expect_hos_instance;
     hos_client_handle_t expect_hos_handle;
-    hos_fd_context_t expect_fd_info;
 
     hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_default_conf", 1);
     gtest_hos_instance_init(&expect_hos_instance);
@@ -105,7 +103,7 @@ TEST(hos_shutdown_instance, shutdown_more)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     int ret = hos_shutdown_instance();
-    EXPECT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_CLIENT_OK);
     expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
@@ -123,7 +121,7 @@ TEST(hos_shutdown_instance, shutdown_more)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     ret = hos_shutdown_instance();
-    EXPECT_EQ(ret, HOS_INSTANCE_NOT_INIT);
+    ASSERT_EQ(ret, HOS_INSTANCE_NOT_INIT);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 }

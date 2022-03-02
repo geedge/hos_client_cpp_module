@@ -20,22 +20,6 @@ if (HOS_MESA_LOG)
     add_definitions(-DHOS_MESA_LOG)
 endif()
 
-find_program(CMAKE_CXX_CPPCHECK NAMES cppcheck)
-if (CMAKE_CXX_CPPCHECK)
-    list(
-        APPEND CMAKE_CXX_CPPCHECK 
-            "--enable=all"
-            "--error-exitcode=1"
-            "--suppress=unusedFunction"
-            "--suppress=missingInclude"
-            "--suppress=uselessAssignmentPtrArg"
-            "--suppress=unmatchedSuppression"
-    )
-    set(CMAKE_C_CPPCHECK ${CMAKE_CXX_CPPCHECK})
-else()
-  message(FATAL_ERROR "Could not find the program cppcheck.")
-endif()
-
 file(GLOB HOS_SRC
     ${HOS_SOURCE}
     ${HOS_HEADERS}

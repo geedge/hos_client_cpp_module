@@ -67,7 +67,7 @@ TEST(hos_init_instance, normal)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     int ret = hos_shutdown_instance();
-    EXPECT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_CLIENT_OK);
     memset(&expect_hos_instance, 0, sizeof(expect_hos_instance));
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
@@ -92,7 +92,7 @@ TEST(hos_init_instance, param_error)
     ASSERT_EQ(hos_instance, nullptr);
     expect_hos_instance.status = INSTANCE_UNINIT_STATE;
     expect_hos_instance.error_code = HOS_PARAMETER_ERROR;
-    const char *err_msg =  "param error:conf_path:(null), module:hos_default_conf, thread_num:1";
+    const char *err_msg =  "param error:conf_path:NULL, module:hos_default_conf, thread_num:1";
     memcpy(expect_hos_instance.error_message, err_msg, strlen(err_msg)+1);
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(&g_hos_instance, &expect_hos_instance);
@@ -129,7 +129,7 @@ TEST(hos_init_instance, server_conn_failed)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     int ret = hos_shutdown_instance();
-    EXPECT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_CLIENT_OK);
     memset(&expect_hos_instance, 0, sizeof(expect_hos_instance));
     CheckHosInstance(hos_instance, &expect_hos_instance);
 

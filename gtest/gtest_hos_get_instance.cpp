@@ -75,7 +75,7 @@ TEST(hos_get_instance, normal)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     
     int ret = hos_shutdown_instance();
-    EXPECT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_CLIENT_OK);
     expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);

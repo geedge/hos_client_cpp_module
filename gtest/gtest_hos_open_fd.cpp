@@ -51,9 +51,10 @@ static void gtest_hos_instance_init(hos_instance instance)
 
 static void gtest_hos_fd_init(hos_fd_context_t *fd_info)
 {
-    memset(fd_info, 0, sizeof(hos_fd_context_t));
+    fd_info->mode = 0;
     fd_info->bucket = (char *)HOS_BUCKET;
     fd_info->object = (char *)"object";
+    fd_info->cache = NULL;
     fd_info->cache_count = 10;
     fd_info->cache_rest = g_hos_handle.hos_config.cache_size;
     fd_info->callback = NULL;
@@ -62,6 +63,10 @@ static void gtest_hos_fd_init(hos_fd_context_t *fd_info)
     fd_info->position = 0;
     fd_info->recive_cnt = 0;
     fd_info->userdata = NULL;
+    fd_info->reslut = false;
+    fd_info->error = NULL;
+    fd_info->errorcode = 0;
+    fd_info->thread_id = 0;
 }
 
 TEST(hos_open_fd, normal)
@@ -78,31 +83,31 @@ TEST(hos_open_fd, normal)
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     size_t fd = 0;
-    int err = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0, &fd);
+    hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 0, &fd);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[0]);
     CheckStructGHosFdContext((hos_fd_context_t *)fd, &expect_fd_info[0]);
     
     size_t fd1 = 0;
-    err = hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 1, &fd1);
+    hos_open_fd(HOS_BUCKET, "object", NULL, NULL, 1, &fd1);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     gtest_hos_fd_init(&expect_fd_info[1]);
     CheckStructGHosFdContext((hos_fd_context_t *)fd1, &expect_fd_info[1]);
     
     int ret = hos_close_fd(fd);
-    EXPECT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_CLIENT_OK);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     ret = hos_close_fd(fd1);
-    EXPECT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_CLIENT_OK);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     ret = hos_shutdown_instance();
-    EXPECT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_CLIENT_OK);
     expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
@@ -133,12 +138,12 @@ TEST(hos_open_fd, paramer_error)
     
     size_t fd = 0;
     int err = hos_open_fd(NULL, "object", NULL, NULL, 0, &fd);
-    EXPECT_EQ(err, HOS_PARAMETER_ERROR);
+    ASSERT_EQ(err, HOS_PARAMETER_ERROR);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     int ret = hos_shutdown_instance();
-    EXPECT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_CLIENT_OK);
     expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
@@ -169,12 +174,12 @@ TEST(hos_open_fd, over_threadnums)
 
     size_t fd = 0;
     int err = hos_open_fd(HOS_CONF, "object", NULL, NULL, 3, &fd);
-    EXPECT_EQ(err, HOS_PARAMETER_ERROR);
+    ASSERT_EQ(err, HOS_PARAMETER_ERROR);
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 
     int ret = hos_shutdown_instance();
-    EXPECT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_CLIENT_OK);
     expect_hos_instance.status = 0;
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
@@ -196,5 +201,5 @@ TEST(hos_open_fd, not_init_instance)
 {
     size_t fd = 0;
     int err = hos_open_fd(HOS_CONF, "object", NULL, NULL, 0, &fd);
-    EXPECT_EQ(err, HOS_INSTANCE_NOT_ENABLE);
+    ASSERT_EQ(err, HOS_INSTANCE_NOT_ENABLE);
 }

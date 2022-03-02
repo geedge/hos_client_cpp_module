@@ -7,7 +7,19 @@ variables:
   TESTING_VERSION_BUILD: 0
 
 stages:
+- analysis
+- test
 - build
+
+run_cppcheck:
+  stage: analysis
+  script:
+    - mkdir build || true
+    - cd build
+    - cmake3 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
+    - cppcheck --project=compile_commands.json --enable=all --error-exitcode=1 --suppress=unusedFunction --suppress=missingInclude --suppress=uselessAssignmentPtrArg --suppress=unmatchedSuppression
+  tags:
+    - share
 
 .build_by_travis:
   before_script:
@@ -21,6 +33,18 @@ stages:
   - cd build
   tags:
   - share
+
+# run_test:
+#   stage: test
+#   extends: .build_by_travis
+#   variables:
+#     HOS_MOCK: "ON"
+#     HOS_MESA_LOG: "OFF"
+#   script:
+#     - yum makecache
+#     - ./ci/travis.sh
+#     - cd build
+#     - ctest --verbose
 
 branch_build_debug:
   stage: build
