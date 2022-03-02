@@ -60,7 +60,7 @@ fi
 
 if [ -n "${UPLOAD_SYMBOL_FILES}" ]; then
   rpm -i $SYMBOL_TARGE*debuginfo*.rpm
-  _symbol_file=`find /usr/lib/debug/ -name "$SYMBOL_TARGET*.so*.debug"`
+  _symbol_file=`find /usr/lib/debug/ -name "*$SYMBOL_TARGET*.so*.debug"`
   cp $_symbol_file ${_symbol_file}info.${CI_COMMIT_SHORT_SHA}
   sentry-cli upload-dif -t elf ${_symbol_file}info.${CI_COMMIT_SHORT_SHA}
 fi
