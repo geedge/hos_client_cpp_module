@@ -37,6 +37,9 @@ add_subdirectory(src)
 enable_testing()
 add_subdirectory(gtest)
 
+add_subdirectory(example/demo)
+add_subdirectory(example/performance)
+
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/src/libhos-client-cpp.so DESTINATION ${CMAKE_INSTALL_PREFIX}/lib COMPONENT LIBRARIES)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/hos_client.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include COMPONENT HEADER)
 #install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/conf/hos.conf DESTINATION /etc/ld.so.conf.d COMPONENT PROFILE)

@@ -101,7 +101,6 @@ TEST(hos_upload_file, normal)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);
@@ -137,7 +136,6 @@ TEST(hos_upload_file, param_error)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);
@@ -173,7 +171,6 @@ TEST(hos_upload_file, file_not_exits)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);
@@ -221,7 +218,6 @@ TEST(hos_upload_file, bucket_not_exits)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);

@@ -5,8 +5,8 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -shared -fPIC -std=c++11")
 include_directories(${CMAKE_INSTALL_PREFIX}/include/MESA)
 link_directories(${CMAKE_INSTALL_PREFIX}/lib)
 
-option(HOS_MOCK "If enabled, the SDK will be built using a MOCK .cpp file for S3." OFF)
-option(HOS_MESA_LOG "If enabled, the SDK will be built using a MOCK .cpp file for S3." ON)
+option(HOS_MOCK "If enabled, the SDK will be built using a MOCK .cpp file for HOS." OFF)
+option(HOS_MESA_LOG "If enabled, the SDK will be built using a MESA_LOG .cpp file for HOS." ON)
 
 file(GLOB HOS_HEADERS "*.h")
 file(GLOB HOS_SOURCE "*.cpp")
@@ -35,7 +35,6 @@ target_link_libraries(${lib_name}_shared
     libaws-c-event-stream.a
     libaws-cpp-sdk-core.a 
     libaws-cpp-sdk-s3.a
-    libtesting-resources.a
     "-Wl,--no-whole-archive"
     libcurl.so
     libpthread.so

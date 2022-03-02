@@ -131,7 +131,7 @@ typedef struct hos_fd_context_s
     size_t cache_count;
     size_t position;
     size_t recive_cnt;
-    long cache_rest;
+    size_t cache_rest;
     int fd_status;
 #define HOS_FD_REGISTER 0
 #define HOS_FD_CANCEL 1

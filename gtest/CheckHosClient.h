@@ -1,7 +1,7 @@
 #ifndef __CHECKHOS_CLIENT_H__
 #define __CHECKHOS_CLIENT_H__
 
-#include <aws/external/gtest.h>
+#include "gtest/gtest.h"
 #include "../src/hos_client.h"
 #include "../src/hos_common.h"
 

@@ -18,19 +18,18 @@ extern "C"
 
 typedef struct userdata_s
 {
-    struct timespec *finished;
+    //struct timespec *finished;
 }userdata_t;
 
-static size_t  calc_time(struct timespec start, struct timespec end)
-{
-    return (end.tv_sec * 1000 * 1000 * 1000 + end.tv_nsec - 
-        (start.tv_sec * 1000 * 1000 * 1000 + start.tv_nsec));
-}
+// static size_t  calc_time(struct timespec start, struct timespec end)
+// {
+//     return (end.tv_sec * 1000 * 1000 * 1000 + end.tv_nsec - 
+//         (start.tv_sec * 1000 * 1000 * 1000 + start.tv_nsec));
+// }
 
 int file_to_buffer(const char *file, char *buffer, int size)
 {
     FILE *fp = fopen(file, "r");
-    int num = 0;
 
     if (fp == NULL)
     {
@@ -38,7 +37,7 @@ int file_to_buffer(const char *file, char *buffer, int size)
         return -1;
     }
     do{
-        num = fread(buffer, 1, size, fp);
+        int num = fread(buffer, 1, size, fp);
         if (num < 0)
         {
             return -1;
@@ -56,30 +55,24 @@ void callback(bool result, const char *bucket, const char *object, const char *e
 {
     if (!result)
     {
-        printf("error:[%d], %s\n", errorcode, errormsg);
+        printf("error:[%zu], %s\n", errorcode, errormsg);
     }
     return ;
 }
 
-int main(int argc, char *argv[])
+int main(const int argc, const char *argv[])
 {
     if (argc != 4)
     {
         printf("usege: [conf file] [module name] [file name]\n");
         return -1;
     }
-    struct timespec start, end, finished;
-    size_t time;
-    int i = 0;
-    char *conf_file = argv[1];
-    char *module_name = argv[2];
-    char *file_name = argv[3];
+    const char *conf_file = argv[1];
+    const char *module_name = argv[2];
+    const char *file_name = argv[3];
     struct stat buffer;    
     char *buf = NULL;
-    size_t buf_size;
-    int mode = FILE_MODE;
     size_t fd = 0; 
-    userdata_t data = {&finished};
     hos_instance hos_instance = NULL;
     char object[1024];
     const char *bucket = "hos_test_bucket";
@@ -107,7 +100,7 @@ int main(int argc, char *argv[])
     if (hos_instance == NULL) 
     {
         printf("error:hos_init_instance\n");
-        printf("error:[%d]%s", hos_get_init_instance_errorcode, hos_get_init_instance_errormsg);
+        printf("error:[%d]%s", hos_get_init_instance_errorcode(), hos_get_init_instance_errormsg());
         return -1;
     }  
     printf("hos_init_instance success ... \n");
@@ -128,19 +121,48 @@ int main(int argc, char *argv[])
     }
     printf("hos_upload_buff end ...\n");
 
-    mode = BUFF_MODE | APPEND_MODE;
     printf("hos_write buff start ...\n");
     snprintf(object, 1023, "%s_write_APPEND", file_name);
-    int err = hos_open_fd(bucket, object, callback, NULL, 0, &fd);
-    if (hos_write(fd, buf, buffer.st_size) != HOS_CLIENT_OK)
+    hos_open_fd(bucket, object, callback, NULL, 0, &fd);
+    int ret = hos_write(fd, buf, buffer.st_size);
+    if (ret == HOS_CLIENT_OK)
+    {
+        printf("debug: hos_write successed 1st.\n");
+    }
+    else if (ret == HOS_IN_CACHE)
+    {
+        printf("debug: hos_write in cache.\n");
+    }
+    else
     {
         printf("error: hos_write failed 1st!\n");
     }
-    if (hos_write(fd, buf, buffer.st_size) != HOS_CLIENT_OK)
+    ret = hos_write(fd, buf, buffer.st_size);
+    if (ret == HOS_CLIENT_OK)
+    {
+        printf("debug: hos_write successed 2nd.\n");
+    }
+    else if (ret == HOS_IN_CACHE)
+    {
+        printf("debug: hos_write in cache.\n");
+    }
+    else
     {
         printf("error: hos_write failed 2nd!\n");
     }
-    hos_close_fd(fd);
+    ret = hos_close_fd(fd);
+    if (ret == HOS_CLIENT_OK)
+    {
+        printf("debug: hos_close_fd successed.\n");        
+    }
+    else if (ret == HOS_FD_CLOSE_BUT_SEND_FAILED)
+    {
+        printf("debug: hos send fialed, but close fd successed.\n");
+    }
+    else
+    {
+        printf("error: hos_close_fd failed.\n");
+    }
     printf("hos_write buff end ...\n");
 
     printf("hos_shutdown_instance start ...\n");

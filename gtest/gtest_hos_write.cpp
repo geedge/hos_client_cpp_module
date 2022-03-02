@@ -202,7 +202,6 @@ TEST(hos_write, normal)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);
@@ -304,7 +303,6 @@ TEST(hos_write, bucket_not_exits)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);
@@ -401,7 +399,6 @@ TEST(hos_write, sync_mode)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);
@@ -481,14 +478,14 @@ TEST(hos_write, sync_mode_bucket_not_exits)
     ASSERT_TRUE(((hos_fd_context_t *)fd1)->cache != NULL); 
 
     ret = hos_close_fd(fd);
-    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_FD_CLOSE_BUT_SEND_FAILED);
     data_info->tx_failed_bytes[0] += data_info->cache[0];
     data_info->tx_failed_pkts[0] += 1;
     data_info->cache[0] = 0;
     CheckHosInstance(hos_instance, &expect_hos_instance);
     CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
     ret = hos_close_fd(fd1);
-    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    ASSERT_EQ(ret, HOS_FD_CLOSE_BUT_SEND_FAILED);
     data_info->tx_failed_bytes[1] += data_info->cache[1];
     data_info->tx_failed_pkts[1] += 1;
     data_info->cache[1] = 0;
@@ -501,7 +498,6 @@ TEST(hos_write, sync_mode_bucket_not_exits)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);
@@ -546,7 +542,6 @@ TEST(hos_write, paramer_error)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     free(data_info->cache);
     free(data_info->rx_bytes);
@@ -584,7 +579,6 @@ TEST(hos_write, fd_not_find)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     free(data_info->cache);
     free(data_info->rx_bytes);
@@ -630,7 +624,6 @@ TEST(hos_write, over_threadnums)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     free(data_info->cache);
     free(data_info->rx_bytes);
@@ -647,6 +640,65 @@ TEST(hos_write, not_init_instance)
 {
     int ret = hos_write(3, HOS_BUFF, strlen(HOS_CONF));
     ASSERT_EQ(ret, HOS_INSTANCE_NOT_ENABLE);
+}
+
+TEST(hos_write, cache_size_zero)
+{
+    hos_instance_s expect_hos_instance;
+    hos_client_handle_t expect_hos_handle;
+    hos_fd_context_t expect_fd_info;
+    int thread_num = 1;
+    data_info_t *data_info = NULL;
+
+    hos_instance hos_instance = hos_init_instance(HOS_CONF, "hos_cache_size_zero_conf", thread_num);
+    gtest_hos_instance_init(&expect_hos_instance);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    gtest_hos_handle_init(&expect_hos_handle, thread_num);
+    data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
+    expect_hos_handle.hos_config.cache_size = 0;
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    
+    size_t fd = 0;
+    hos_open_fd(HOS_BUCKET, "object_buff", hos_write_append_cb, (void *)"object_buff", 0, &fd);
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+    gtest_hos_fd_init(&expect_fd_info);
+    expect_fd_info.object = (char *)"object_buff";
+    expect_fd_info.cache_rest = 0;
+    expect_fd_info.callback = (void *)hos_write_append_cb;
+    expect_fd_info.userdata = (void *)"object_buff";
+    CheckStructGHosFdContext((hos_fd_context_t *)fd, &expect_fd_info);
+
+    int ret = hos_write(fd, HOS_BUFF, strlen(HOS_BUFF));
+    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    data_info->rx_bytes[0] += strlen(HOS_BUFF);
+    data_info->rx_pkts[0] += 1;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    //CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+
+    ret = hos_close_fd(fd);
+    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    data_info->tx_bytes[0] += strlen(HOS_BUFF);
+    data_info->tx_pkts[0] += 1;
+    data_info->cache[0] = 0;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
+
+    ret = hos_shutdown_instance();
+    ASSERT_EQ(ret, HOS_CLIENT_OK);
+    expect_hos_instance.status = 0;
+    expect_hos_instance.hos_url_prefix = NULL;
+    CheckHosInstance(hos_instance, &expect_hos_instance);
+
+    free(data_info->cache);
+    free(data_info->rx_bytes);
+    free(data_info->rx_pkts);
+    free(data_info->tx_bytes);
+    free(data_info->tx_pkts);
+    free(data_info->tx_failed_bytes);
+    free(data_info->tx_failed_pkts);
+    memset(&expect_hos_handle, 0, sizeof(hos_client_handle_s));
+    CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
 }
 
 static void read_file(char *path, char **content, int *len)
@@ -699,7 +751,7 @@ static void *hos_function(void *ptr)
     {
         snprintf(object[i], 1024, "object_%zu_%d", thread_id, i);
         int err = hos_open_fd(HOS_BUCKET, object[i], hos_callback, object[i], 0, &fd[i]);
-        EXPECT_EQ(err, i + 1);
+        EXPECT_EQ(err, HOS_CLIENT_OK);
         CheckHosInstance(hos_instance, &expect_hos_instance);
         CheckStructGHosHandle(&g_hos_handle, &expect_hos_handle);
         gtest_hos_fd_init(&expect_fd_info[thread_id][i]);
@@ -746,7 +798,6 @@ static void *hos_function(void *ptr)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     free(data_info->cache);
     free(data_info->rx_bytes);
     free(data_info->rx_pkts);

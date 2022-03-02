@@ -112,7 +112,6 @@ TEST(hos_open_fd, normal)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     free(data_info->cache);
     free(data_info->rx_bytes);
@@ -148,7 +147,6 @@ TEST(hos_open_fd, paramer_error)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     free(data_info->cache);
     free(data_info->rx_bytes);
@@ -184,7 +182,6 @@ TEST(hos_open_fd, over_threadnums)
     expect_hos_instance.hos_url_prefix = NULL;
     CheckHosInstance(hos_instance, &expect_hos_instance);
 
-    Aws::Vector<Aws::S3::Model::Bucket>().swap(g_hos_handle.buckets);
     data_info_t *data_info = (data_info_t *)expect_hos_handle.hos_func.fs2_info.reserved;
     free(data_info->cache);
     free(data_info->rx_bytes);

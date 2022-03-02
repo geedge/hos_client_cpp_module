@@ -121,8 +121,6 @@ static int upload_file(char *file, char *buff, int buff_len, thread_info_t *thre
     long record[1000] = {0};
     double variance = 0.00;
     double average = 0.00;
-    long time = 0;
-    int err = 0;
     //写文件
     
     //clock_gettime(CLOCK_MONOTONIC, &tstart);
@@ -155,14 +153,14 @@ static int upload_file(char *file, char *buff, int buff_len, thread_info_t *thre
     for (i = 0; i < g_test_count; i++)
     {
         clock_gettime(CLOCK_MONOTONIC, &tstart);
-        err = hos_open_fd(thread_info->bucket, thread_info->object, callback, NULL, thread_info->thread_num, &fd[i]);
+        hos_open_fd(thread_info->bucket, thread_info->object, callback, NULL, thread_info->thread_num, &fd[i]);
         if (hos_write(fd[i], file, 0) != HOS_CLIENT_OK)
         {
             printf("error:hos_write file:%s\n", file);
             return -1;
         }
         clock_gettime(CLOCK_MONOTONIC, &tend);
-        time = calc_time(tstart, tend);
+        long time = calc_time(tstart, tend);
         time_upload += time;
         record[i] += time;
     }
@@ -189,7 +187,7 @@ static int upload_file(char *file, char *buff, int buff_len, thread_info_t *thre
     {
         sprintf(file_size, "%dB", buff_len);
     }
-    sprintf(&performance_info[len], "%-20lu%-20s%-20ld%-20ld%-20lf%-20lf\n",
+    sprintf(&performance_info[len], "%-20zu%-20s%-20ld%-20ld%-20lf%-20lf\n",
             thread_info->thread_num, file_size, time_write, time_upload, average, sqrt(variance));
 
     return 0;
@@ -198,33 +196,27 @@ static int upload_file(char *file, char *buff, int buff_len, thread_info_t *thre
 static int upload_buff(char * buff, int buff_len, thread_info_t *thread_info, char *performance_info)
 {
     size_t i = 0;
-    int j = 0;
     size_t fd[1000] = {0};
-    size_t tmp = 0;
-    size_t rest = 0;
     struct timespec tstart, ttmp;
     size_t len;
     char file_size[128];
     char append_size[128];
-    size_t success_cnt = 0;
-    int ret = 0;
     double variance = 0.00;
     double average = 0.00;
     long record[30000] = {0};
-    int err = 0;
 
     if (g_mode & APPEND_MODE)
     {
-        err = hos_open_fd(thread_info->bucket, thread_info->object, callback, NULL, thread_info->thread_num, &fd[0]);
+        hos_open_fd(thread_info->bucket, thread_info->object, callback, NULL, thread_info->thread_num, &fd[0]);
 
         for (i = 0; i < g_test_count; i++)
         {
             clock_gettime(CLOCK_MONOTONIC, &tstart);
-            j = 0;
+            int j = 0;
             while (1)
             {
-                tmp = j * g_append_size;
-                rest = buff_len - tmp;
+                size_t tmp = j * g_append_size;
+                size_t rest = buff_len - tmp;
                 if (rest <= g_append_size)
                 {
                     hos_write(fd[0], &buff[tmp], rest);
@@ -259,15 +251,16 @@ static int upload_buff(char * buff, int buff_len, thread_info_t *thread_info, ch
         }
         sprintf(append_size, "%gK", (double)g_append_size / 1024);
         len = strlen(performance_info);
-        sprintf(&performance_info[len], "%-20lu%-20s%-20s%-20lu%-20lf%-20lf\n",
+        sprintf(&performance_info[len], "%-20zu%-20s%-20s%-20zu%-20lf%-20lf\n",
                 thread_info->thread_num, file_size, append_size, g_test_count, average, sqrt(variance));
     }
     else
     {
+        size_t success_cnt = 0;
         for (i = 0; i < g_test_count; i++)
         {
             clock_gettime(CLOCK_MONOTONIC, &tstart);
-            ret = hos_upload_buf(thread_info->bucket, thread_info->object, buff, buff_len, callback, NULL, thread_info->thread_num);
+            int ret = hos_upload_buf(thread_info->bucket, thread_info->object, buff, buff_len, callback, NULL, thread_info->thread_num);
             if (ret == HOS_CLIENT_OK)
             {
                 success_cnt++;
@@ -306,7 +299,7 @@ static int upload_buff(char * buff, int buff_len, thread_info_t *thread_info, ch
         }
         sprintf(append_size, "%gK", (double)g_append_size / 1024);
         len = strlen(performance_info);
-        sprintf(&performance_info[len], "%-20lu%-20s%-20d%-20lu%-20lf%-20lf\n",
+        sprintf(&performance_info[len], "%-20zu%-20s%-20d%-20zu%-20lf%-20lf\n",
                 thread_info->thread_num, file_size, 0, g_test_count, average, sqrt(variance));
     }
 
@@ -327,7 +320,6 @@ static void *put_object_thread(void *ptr)
     thread_info_t *thread_info = (thread_info_t *)ptr;
     char file[128];
     size_t buff_len;
-    int ret;
     int i;
     char *buff = NULL;
 
@@ -351,7 +343,7 @@ static void *put_object_thread(void *ptr)
     {
         if (g_file_name[i][0] == '\0')
             break;
-        ret = file_to_buffer(g_file_name[i], buff, &buff_len);
+        int ret = file_to_buffer(g_file_name[i], buff, &buff_len);
         if (ret == -1)
         {
             free(buff);
@@ -364,7 +356,7 @@ static void *put_object_thread(void *ptr)
         }
         else
         {
-            sprintf(file, "./file/file_%lu_%d", thread_info->thread_num, i);
+            sprintf(file, "./file/file_%zu_%d", thread_info->thread_num, i);
             upload_file(file, buff, buff_len, thread_info, performance_info);
         }
     }
@@ -509,7 +501,7 @@ int main(int argc, char *argv[])
     for ( thread_num = 0; thread_num < thread_sum; thread_num++ )
     {
         thread_info[thread_num].thread_num = thread_num;
-        sprintf(thread_info[thread_num].object, "%s-%lu", object, thread_num);
+        sprintf(thread_info[thread_num].object, "%s-%zu", object, thread_num);
         sprintf(thread_info[thread_num].bucket, "%s", bucket);
 
         if(pthread_create(&thread[thread_num], NULL, put_object_thread, (void *)&thread_info[thread_num]))

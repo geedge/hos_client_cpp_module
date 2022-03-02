@@ -7,6 +7,9 @@ link_directories(/usr/local/lib64/)
 link_directories(/opt/MESA/lib/)
 link_libraries(hos-client-cpp pthread)
 include_directories(/opt/MESA/include)
+include_directories(/opt/MESA/include/MESA)
+include_directories("${CMAKE_SOURCE_DIR}/src/")
+link_directories("${CMAKE_BINARY_DIR}/src")
 
 #for ASAN
 set(ASAN_OPTION "OFF" CACHE STRING " set asan type chosen by the user, using OFF as default")
@@ -27,5 +30,6 @@ endif()
 # end of for ASAN
 
 add_executable(HosClientPerformance HosClientPerformance.cpp)
+add_dependencies(HosClientPerformance ${lib_name}_shared)
 target_link_libraries(HosClientPerformance hos-client-cpp MESA_handle_logger)
 
