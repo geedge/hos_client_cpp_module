@@ -3,7 +3,7 @@ include(ExternalProject)
 set(AWSS3_ROOT            ${CMAKE_CURRENT_BINARY_DIR})
 set(AWSS3_URL             ${CMAKE_CURRENT_SOURCE_DIR}/aws-sdk-cpp-master.zip)
 set(AWSS3_URL_MD5         fe191c53c566e3ec58c69d016e0a18f7)
-set(AWSS3_CONFIGURE       cd ${AWSS3_ROOT}/aws-sdk-cpp-master/src/aws-sdk-cpp-master && cmake . -DBUILD_ONLY=s3 -DENABLE_TESTING=OFF)
+set(AWSS3_CONFIGURE       cd ${AWSS3_ROOT}/aws-sdk-cpp-master/src/aws-sdk-cpp-master && cmake3 . -DBUILD_ONLY=s3 -DENABLE_TESTING=OFF)
 set(AWSS3_MAKE            cd ${AWSS3_ROOT}/aws-sdk-cpp-master/src/aws-sdk-cpp-master && make) 
 set(AWSS3_INSTALL         cd ${AWSS3_ROOT}/aws-sdk-cpp-master/src/aws-sdk-cpp-master && make install PREFIX=${SUPPORT_INSTALL_PREFIX})
 

@@ -1,18 +1,47 @@
-image: "git.mesalab.cn:7443/mesa_platform/build-env:master"
 variables:
   GIT_STRATEGY: "clone"
   BUILD_PADDING_PREFIX: /tmp/padding_for_CPACK_RPM_BUILD_SOURCE_DIRS_PREFIX_PREFIX_PREFIX_PREFIX_PREFIX_PREFIX/
+  BUILD_IMAGE_CENTOS7: "git.mesalab.cn:7443/mesa_platform/build-env:master"
+  BUILD_IMAGE_CENTOS8: "git.mesalab.cn:7443/mesa_platform/build-env:rockylinux"
   INSTALL_PREFIX: "/home/mesasoft/sapp_run/"
   INSTALL_DEPENDENCY_LIBRARY: framework_env libMESA_field_stat2-devel zlib-devel openssl-devel curl-devel libMESA_prof_load-devel libMESA_handle_logger-devel
   TESTING_VERSION_BUILD: 0
 
 stages:
 - analysis
-- test
 - build
 
-run_cppcheck:
+.build_before_script:
+  before_script:
+  - mkdir -p $BUILD_PADDING_PREFIX/$CI_PROJECT_NAMESPACE/
+  - ln -s $CI_PROJECT_DIR $BUILD_PADDING_PREFIX/$CI_PROJECT_PATH
+  - cd $BUILD_PADDING_PREFIX/$CI_PROJECT_PATH
+  - chmod +x ./ci/travis.sh
+  - yum makecache
+  - ./ci/travis.sh
+
+.build_by_travis_for_centos7:
+  stage: build
+  image: $BUILD_IMAGE_CENTOS7
+  extends: .build_before_script
+  script:
+    - ./ci/travis.sh
+    - cd build
+  tags:
+    - share
+
+.build_by_travis_for_centos8:
+  stage: build
+  image: $BUILD_IMAGE_CENTOS8
+  extends: .build_before_script
+  script:
+    - ./ci/travis.sh
+  tags:
+    - share
+
+run_cppcheck_for_centos7:
   stage: analysis
+  image: $BUILD_IMAGE_CENTOS7
   script:
     - mkdir build || true
     - cd build
@@ -21,34 +50,41 @@ run_cppcheck:
   tags:
     - share
 
-.build_by_travis:
-  before_script:
-  - mkdir -p $BUILD_PADDING_PREFIX/$CI_PROJECT_NAMESPACE/
-  - ln -s $CI_PROJECT_DIR $BUILD_PADDING_PREFIX/$CI_PROJECT_PATH
-  - cd $BUILD_PADDING_PREFIX/$CI_PROJECT_PATH
-  - chmod +x ./ci/travis.sh
+run_cppcheck_for_centos8:
+  stage: analysis
+  image: $BUILD_IMAGE_CENTOS8
   script:
-  - yum makecache fast
-  - ./ci/travis.sh
-  - cd build
+    - mkdir build || true
+    - cd build
+    - cmake3 -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
+    - cppcheck --project=compile_commands.json --enable=all --error-exitcode=1 --suppress=unusedFunction --suppress=missingInclude --suppress=uselessAssignmentPtrArg --suppress=unmatchedSuppression
   tags:
-  - share
+    - share
 
-# run_test:
+# run_test_for_centos7:
 #   stage: test
-#   extends: .build_by_travis
-#   variables:
-#     HOS_MOCK: "ON"
-#     HOS_MESA_LOG: "OFF"
+#   image: $BUILD_IMAGE_CENTOS7
+#   extends: .build_by_travis_for_centos7
 #   script:
 #     - yum makecache
 #     - ./ci/travis.sh
 #     - cd build
 #     - ctest --verbose
 
-branch_build_debug:
+# run_test_for_centos8:
+#   stage: test
+#   image: $BUILD_IMAGE_CENTOS8
+#   extends: .build_by_travis_for_centos8
+#   script:
+#     - yum makecache
+#     - yum install -y libnsl
+#     - ./ci/travis.sh
+#     - cd build
+#     - ctest3 --verbose
+
+branch_build_debug_for_centos7:
   stage: build
-  extends: .build_by_travis
+  extends: .build_by_travis_for_centos7
   variables:
     BUILD_TYPE: Debug
   except:
@@ -56,83 +92,181 @@ branch_build_debug:
     - /^master.*$/i
     - tags
 
-branch_build_release:
+branch_build_release_for_centos7:
   stage: build
   variables:
     BUILD_TYPE: RelWithDebInfo
-  extends: .build_by_travis
+  extends: .build_by_travis_for_centos7
   except:
     - /^develop.*$/i
     - /^master.*$/i
     - tags
 
-develop_build_debug:
+develop_build_debug_for_centos7:
   stage: build
-  extends: .build_by_travis
+  extends: .build_by_travis_for_centos7
   variables:
     BUILD_TYPE: Debug
-
-    TESTING_VERSION_BUILD: 1
     PACKAGE: 1
-    UPLOAD: 1
-    PULP3_REPO_NAME: tsg-testing-x86_64.el7
-    PULP3_DIST_NAME: tsg-testing-x86_64.el7
+    UPLOAD_RPM: 1
+    ASAN_OPTION: ADDRESS
+    TESTING_VERSION_BUILF: 1
+    PULP3_REPO_NAME: framework-testing-x86_64.el7
+    PILP3_DIST_NAME: framework-testing-x86_64.el7
   artifacts:
     name: "hos-client-cpp-$CI_COMMIT_REF_NAME-debug"
-    paths:
+    paths: 
       - build/*.rpm
   only:
-    - /^develop.*$/i
-    - /^master.*$/i
+    - /^dev*.*$/i
+    - /^rel*.*$/i
+    - /^master.$/i
 
-develop_build_release:
+develop_build_release_for_centos7:
   stage: build
-  extends: .build_by_travis
+  extends: .build_by_travis_for_centos7
   variables:
     BUILD_TYPE: RelWithDebInfo
-    TESTING_VERSION_BUILD: 1
     PACKAGE: 1
-    UPLOAD: 1
-    ASAN_OPTION: "OFF"
-    PULP3_REPO_NAME: tsg-testing-x86_64.el7
-    PULP3_DIST_NAME: tsg-testing-x86_64.el7
+    UPLOAD_RPM: 1
+    TESTING_VERSION_BUILF: 1
+    PULP3_REPO_NAME: framework-testing-x86_64.el7
+    PILP3_DIST_NAME: framework-testing-x86_64.el7
   artifacts:
-    name: "hos-client-cpp-$CI_COMMIT_REF_NAME-release"
-    paths:
+    name: "hos-client-cpp-$CI_COMMIT_REF_NAME-debug"
+    paths: 
       - build/*.rpm
   only:
-    - /^develop.*$/i
-    - /^master.*$/i
+    - /^dev*.*$/i
+    - /^rel*.*$/i
+    - /^master.$/i
 
-
-release_build_release:
+release_build_debug_for_centos7:
   stage: build
   variables:
-    BUILD_TYPE: RelWithDebInfo
+    BUILD_TYPE: Debug
     PACKAGE: 1
-    UPLOAD: 1
-    PULP3_REPO_NAME: framework-stable-x86_64.el7
-    PULP3_DIST_NAME: framework-stable-x86_64.el7
-  extends: .build_by_travis
-  artifacts:
-    name: "hos-client-cpp-$CI_COMMIT_REF_NAME-release"
-    paths:
-      - build/*.rpm
-  only:
-    - tags
-
-release_build_release_devel:
-  stage: build
-  variables:
-    BUILD_TYPE: RelWithDebInfo
-    ENABLE_DEVEL_SWITCH: "ON"
-    PACKAGE: 1
-    UPLOAD: 1
+    UPLOAD_RPM: 1
     UPLOAD_SYMBOL_FILES: 1
     SYMBOL_TARGET: hos-client-cpp
     PULP3_REPO_NAME: framework-stable-x86_64.el7
     PULP3_DIST_NAME: framework-stable-x86_64.el7
-  extends: .build_by_travis
+  extends: .build_by_travis_for_centos7
+  artifacts:
+    name: "hos-client-cpp-$CI_COMMIT_REF_NAME-release"
+    paths:
+      - build/*.rpm
+  only:
+    - tags
+
+release_build_release_for_centos7:
+  stage: build
+  variables:
+    BUILD_TYPE: RelWithDebInfo
+    PACKAGE: 1
+    UPLOAD_RPM: 1
+    UPLOAD_SYMBOL_FILES: 1
+    SYMBOL_TARGET: hos-client-cpp
+    PULP3_REPO_NAME: framework-stable-x86_64.el7
+    PULP3_DIST_NAME: framework-stable-x86_64.el7
+  extends: .build_by_travis_for_centos7
+  artifacts:
+    name: "hos-client-cpp-$CI_COMMIT_REF_NAME-release"
+    paths:
+      - build/*.rpm
+  only:
+    - tags
+
+branch_build_debug_for_centos8:
+  stage: build
+  extends: .build_by_travis_for_centos8
+  variables:
+    BUILD_TYPE: Debug
+  except:
+    - /^dev*.*$/i
+    - /^rel*.*$/i
+    - /^master.*$/i
+    - tags
+
+branch_build_release_for_centos8:
+  stage: build
+  variables:
+    BUILD_TYPE: RelWithDebInfo
+  extends: .build_by_travis_for_centos8
+  except:
+    - /^dev*.*$/i
+    - /^rel*.*$/i
+    - /^master.*$/i
+    - tags
+
+develop_build_debug_for_centos8:
+  stage: build
+  extends: .build_by_travis_for_centos8
+  variables:
+    BUILD_TYPE: Debug
+    PACKAGE: 1
+    UPLOAD_RPM: 1
+    ASAN_OPTION: ADDRESS
+    TESTING_VERSION_BUILF: 1
+    PULP3_REPO_NAME: framework-testing-x86_64.el8
+    PILP3_DIST_NAME: framework-testing-x86_64.el8
+  artifacts:
+    name: "hos-client-cpp-$CI_COMMIT_REF_NAME-debug"
+    paths: 
+      - build/*.rpm
+  only:
+    - /^dev*.*$/i
+    - /^rel*.*$/i
+    - /^master*.*$/i
+
+develop_build_release_for_centos8:
+  stage: build
+  extends: .build_by_travis_for_centos8
+  variables:
+    BUILD_TYPE: RelWithDebInfo
+    PACKAGE: 1
+    UPLOAD_RPM: 1
+    TESTING_VERSION_BUILF: 1
+    PULP3_REPO_NAME: framework-testing-x86_64.el8
+    PILP3_DIST_NAME: framework-testing-x86_64.el8
+  artifacts:
+    name: "hos-client-cpp-$CI_COMMIT_REF_NAME-release"
+    paths: 
+      - build/*.rpm
+  only:
+    - /^dev*.*$/i
+    - /^rel*.*$/i
+    - /^master*.*$/i
+
+release_build_debug_for_centos8:
+  stage: build
+  variables:
+    BUILD_TYPE: Debug
+    PACKAGE: 1
+    UPLOAD_RPM: 1
+    UPLOAD_SYMBOL_FILES: 1
+    SYMBOL_TARGET: hos-client-cpp
+    PULP3_REPO_NAME: framework-stable-x86_64.el8
+    PULP3_DIST_NAME: framework-stable-x86_64.el8
+  extends: .build_by_travis_for_centos8
+  artifacts:
+    name: "hos-client-cpp-$CI_COMMIT_REF_NAME-release"
+    paths:
+      - build/*.rpm
+  only:
+    - tags
+
+release_build_release_for_centos8:
+  stage: build
+  variables:
+    BUILD_TYPE: RelWithDebInfo
+    PACKAGE: 1
+    UPLOAD_RPM: 1
+    UPLOAD_SYMBOL_FILES: 1
+    SYMBOL_TARGET: hos-client-cpp
+    PULP3_REPO_NAME: framework-stable-x86_64.el8
+    PULP3_DIST_NAME: framework-stable-x86_64.el8
+  extends: .build_by_travis_for_centos8
   artifacts:
     name: "hos-client-cpp-$CI_COMMIT_REF_NAME-release"
     paths:
