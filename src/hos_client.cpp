@@ -529,8 +529,8 @@ static int hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_t
         atomic_read(&g_hos_handle.task_context[thread_id]) >= hos_conf->max_request_context))
     {
         MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-            "debug: [%s/%s/%s] PutObjectAsync failed. task_num:%lu, task_context:%lu", g_hos_instance.hos_url_prefix,
-            bucket, object, atomic_read(&g_hos_handle.task_num[thread_id]), atomic_read(&g_hos_handle.task_context[thread_id]));
+            "debug: [%s/%s/%s] PutObjectAsync failed. task_num:%lu, task_context:%lu, fd:%zu.", g_hos_instance.hos_url_prefix,
+            bucket, object, atomic_read(&g_hos_handle.task_num[thread_id]), atomic_read(&g_hos_handle.task_context[thread_id]), (size_t)*fd);
 
         if (hos_func->fs2_info.fs2_handle)
         {
@@ -556,9 +556,9 @@ static int hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_t
         atomic_add(&g_hos_handle.task_context[thread_id], stream_len);
         //不算真正成功，需要等到PutObjectAsyncFinished的结果
         MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-            "debug: [%s/%s/%s] PutObjectAsync success. thread:%zu, task_num:%zu, task_content:%zu",
+            "debug: [%s/%s/%s] PutObjectAsync success. thread:%zu, task_num:%zu, task_content:%zu, fd:%zu.",
             g_hos_instance.hos_url_prefix, bucket, object,
-            thread_id, g_hos_handle.task_num[thread_id], g_hos_handle.task_context[thread_id]);
+            thread_id, g_hos_handle.task_num[thread_id], g_hos_handle.task_context[thread_id], (size_t *)*fd);
         
         return HOS_CLIENT_OK;
     }
@@ -935,7 +935,7 @@ int hos_write(size_t fd, const char *stream, size_t stream_len)
         MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__, "error: [%s] fd is NULL", g_hos_instance.hos_url_prefix);
         return HOS_FD_IS_INVALID;
     }
-    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "debug: [%s] Get fd_context", g_hos_instance.hos_url_prefix);
+    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "debug: [%s] Get fd_context. fd:%zu", g_hos_instance.hos_url_prefix, fd);
 
     thread_id = a_fd_context->thread_id;
     if ((stream == NULL) || (thread_id > hos_conf->thread_num))
@@ -1012,11 +1012,11 @@ int hos_write(size_t fd, const char *stream, size_t stream_len)
 
     if (hos_conf->pool_thread_size > 0)
     {
-        ret = hos_putobject_async(request, upload_len, thread_id, &a_fd_context);
+        ret = hos_putobject_async(request, upload_len, thread_id, (hos_fd_context_t **)&fd);
     }
     else
     {
-        ret = hos_putobject_sync(request, upload_len, thread_id, &a_fd_context);
+        ret = hos_putobject_sync(request, upload_len, thread_id, (hos_fd_context_t **)&fd);
     }
 
     //恢复fd 的cache设置
