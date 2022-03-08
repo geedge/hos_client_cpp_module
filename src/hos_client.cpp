@@ -110,7 +110,7 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
             a_fd_context->error = outcome.GetError().GetMessage().c_str();
             a_fd_context->errorcode = (size_t)outcome.GetError().GetErrorType() + 1;
             MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_FATAL, __FUNCTION__,
-                                    "error: [%s/%s/%s] upload failed. error:%s", g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object, a_fd_context->error);
+                                    "error: [%s%s/%s] upload failed. error:%s. fd:%zu", g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object, a_fd_context->error, fd);
 
             if (hos_func->fs2_info.fs2_handle && hos_func->fs2_info.reserved)
             {
@@ -132,15 +132,15 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
                 data_info = (data_info_t *)hos_func->fs2_info.reserved;
                 data_info->tx_pkts[thread_id]++;
                 data_info->tx_bytes[thread_id] += stream_len;
-                MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                                        "debug: [%s/%s/%s] upload success. tx_pkts:%zu, tx_bytes:%zu",
+                MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_INFO, __FUNCTION__,
+                                        "debug: [%s%s/%s] upload success. tx_pkts:%zu, tx_bytes:%zu, fd:%zu",
                                         g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object,
-                                        data_info->tx_pkts[thread_id], data_info->tx_bytes[thread_id]);
+                                        data_info->tx_pkts[thread_id], data_info->tx_bytes[thread_id], fd);
             }
             else
             {
-                MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                                        "debug: [%s/%s/%s] upload success. stream size:%zu", g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object, stream_len);
+                MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_INFO, __FUNCTION__,
+                                        "debug: [%s%s/%s] upload success. stream size:%zu, fd:%zu", g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object, stream_len, fd);
             }
             a_fd_context->error = NULL;
             a_fd_context->errorcode = 0;
@@ -155,8 +155,8 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
             {
                 if (a_fd_context->position == a_fd_context->recive_cnt)
                 {
-                    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                                            "debug: [%s/%s/%s] upload completed. [thread:%zu fd:%zu] delete",
+                    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_INFO, __FUNCTION__,
+                                            "debug: [%s%s/%s] upload completed. [thread:%zu fd:%zu] delete",
                                             g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object, thread_id, fd);
                     hos_delete_fd(fd, thread_id);
                 }
@@ -165,8 +165,8 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
         else
         {
             //完整上传 删除fd
-            MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                                    "debug: [%s/%s/%s] upload completed. [thread:%zu fd:%zu] delete",
+            MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_INFO, __FUNCTION__,
+                                    "debug: [%s%s/%s] upload completed. [thread:%zu fd:%zu] delete",
                                     g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object, thread_id, fd);
             hos_delete_fd(fd, thread_id);
         }
@@ -174,7 +174,7 @@ static void PutObjectAsyncFinished(const Aws::S3::S3Client* S3Client,
     atomic_sub(&g_hos_handle.task_num[thread_id], 1);
     atomic_sub(&g_hos_handle.task_context[thread_id], stream_len);
     MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                            "thread_id:%zu, task_num:%zu, task_content:%zu", thread_id, g_hos_handle.task_num[thread_id], g_hos_handle.task_context[thread_id]);
+                            "thread_id:%zu, task_num:%zu, task_content:%zu, fd:%zu", thread_id, g_hos_handle.task_num[thread_id], g_hos_handle.task_context[thread_id], fd);
 }
 
 static int hos_attempt_connection()
@@ -459,7 +459,7 @@ static void hos_client_create()
     g_hos_handle.task_num = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
     g_hos_handle.task_context = (size_t *)calloc(hos_conf->thread_num, sizeof(size_t));
 
-    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_INFO, __FUNCTION__, "[%s] debug: hos s3client create success.",g_hos_instance.hos_url_prefix);
+    MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__, "[%s] debug: hos s3client create success.",g_hos_instance.hos_url_prefix);
     hos_expand_fs2();
 
 
@@ -529,7 +529,7 @@ static int hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_t
         atomic_read(&g_hos_handle.task_context[thread_id]) >= hos_conf->max_request_context))
     {
         MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-            "debug: [%s/%s/%s] PutObjectAsync failed. task_num:%lu, task_context:%lu, fd:%zu.", g_hos_instance.hos_url_prefix,
+            "debug: [%s%s/%s] PutObjectAsync failed. task_num:%lu, task_context:%lu, fd:%zu.", g_hos_instance.hos_url_prefix,
             bucket, object, atomic_read(&g_hos_handle.task_num[thread_id]), atomic_read(&g_hos_handle.task_context[thread_id]), (size_t)*fd);
 
         if (hos_func->fs2_info.fs2_handle)
@@ -556,7 +556,7 @@ static int hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_t
         atomic_add(&g_hos_handle.task_context[thread_id], stream_len);
         //不算真正成功，需要等到PutObjectAsyncFinished的结果
         MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-            "debug: [%s/%s/%s] PutObjectAsync success. thread:%zu, task_num:%zu, task_content:%zu, fd:%zu.",
+            "debug: [%s%s/%s] PutObjectAsync success. thread:%zu, task_num:%zu, task_content:%zu, fd:%zu.",
             g_hos_instance.hos_url_prefix, bucket, object,
             thread_id, g_hos_handle.task_num[thread_id], g_hos_handle.task_context[thread_id], (size_t *)*fd);
         
@@ -565,7 +565,7 @@ static int hos_putobject_async(Aws::S3::Model::PutObjectRequest& request, size_t
     else
     {
         MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-            "debug: [%s/%s/%s] PutObjectAsync failed.", g_hos_instance.hos_url_prefix, bucket, object);
+            "debug: [%s%s/%s] PutObjectAsync failed.", g_hos_instance.hos_url_prefix, bucket, object);
 
         if (hos_func->fs2_info.fs2_handle)
         {
@@ -597,13 +597,13 @@ static int hos_putobject_sync(Aws::S3::Model::PutObjectRequest& request, size_t 
             data_info->tx_pkts[thread_id]++;
             data_info->tx_bytes[thread_id] += stream_len;
             MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                                    "debug: [%s/%s/%s] PutObject success. tx_pkts:%zu, tx_bytes:%zu",
+                                    "debug: [%s%s/%s] PutObject success. tx_pkts:%zu, tx_bytes:%zu",
                                     g_hos_instance.hos_url_prefix, bucket, object, data_info->tx_pkts[thread_id], data_info->tx_bytes[thread_id]);
         }
         else
         {
             MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                                    "debug: [%s/%s/%s] PutObject success.", g_hos_instance.hos_url_prefix, bucket, object);
+                                    "debug: [%s%s/%s] PutObject success.", g_hos_instance.hos_url_prefix, bucket, object);
         }
 
         return HOS_CLIENT_OK;
@@ -611,7 +611,7 @@ static int hos_putobject_sync(Aws::S3::Model::PutObjectRequest& request, size_t 
     else
     {
         MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-            "debug: [%s/%s/%s] PutObject failed. cause:%s", g_hos_instance.hos_url_prefix, bucket, object, Outcome.GetError().GetMessage().c_str());
+            "debug: [%s%s/%s] PutObject failed. cause:%s", g_hos_instance.hos_url_prefix, bucket, object, Outcome.GetError().GetMessage().c_str());
 
         if (hos_func->fs2_info.fs2_handle && hos_func->fs2_info.reserved)
         {
@@ -1118,7 +1118,7 @@ int hos_close_fd(size_t fd)
         if (a_fd_context->mode == (BUFF_MODE | APPEND_MODE) && a_fd_context->position == a_fd_context->recive_cnt)
         {
             MESA_HANDLE_RUNTIME_LOG(g_hos_handle.log, RLOG_LV_DEBUG, __FUNCTION__,
-                                    "debug: [%s/%s/%s] upload completed. [thread:%zu fd:%zu] delete",
+                                    "debug: [%s%s/%s] upload completed. [thread:%zu fd:%zu] delete",
                                     g_hos_instance.hos_url_prefix, a_fd_context->bucket, a_fd_context->object, thread_id, fd);
             hos_delete_fd(fd, thread_id);
         }
