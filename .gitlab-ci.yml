@@ -112,7 +112,7 @@ develop_build_debug_for_centos7:
     ASAN_OPTION: ADDRESS
     TESTING_VERSION_BUILF: 1
     PULP3_REPO_NAME: framework-testing-x86_64.el7
-    PILP3_DIST_NAME: framework-testing-x86_64.el7
+    PULP3_DIST_NAME: framework-testing-x86_64.el7
   artifacts:
     name: "hos-client-cpp-$CI_COMMIT_REF_NAME-debug"
     paths: 
@@ -131,7 +131,7 @@ develop_build_release_for_centos7:
     UPLOAD_RPM: 1
     TESTING_VERSION_BUILF: 1
     PULP3_REPO_NAME: framework-testing-x86_64.el7
-    PILP3_DIST_NAME: framework-testing-x86_64.el7
+    PULP3_DIST_NAME: framework-testing-x86_64.el7
   artifacts:
     name: "hos-client-cpp-$CI_COMMIT_REF_NAME-debug"
     paths: 
@@ -209,7 +209,7 @@ develop_build_debug_for_centos8:
     ASAN_OPTION: ADDRESS
     TESTING_VERSION_BUILF: 1
     PULP3_REPO_NAME: framework-testing-x86_64.el8
-    PILP3_DIST_NAME: framework-testing-x86_64.el8
+    PULP3_DIST_NAME: framework-testing-x86_64.el8
   artifacts:
     name: "hos-client-cpp-$CI_COMMIT_REF_NAME-debug"
     paths: 
@@ -228,7 +228,7 @@ develop_build_release_for_centos8:
     UPLOAD_RPM: 1
     TESTING_VERSION_BUILF: 1
     PULP3_REPO_NAME: framework-testing-x86_64.el8
-    PILP3_DIST_NAME: framework-testing-x86_64.el8
+    PULP3_DIST_NAME: framework-testing-x86_64.el8
   artifacts:
     name: "hos-client-cpp-$CI_COMMIT_REF_NAME-release"
     paths: 
