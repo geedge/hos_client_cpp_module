@@ -147,7 +147,6 @@ release_build_debug_for_centos7:
     BUILD_TYPE: Debug
     PACKAGE: 1
     UPLOAD_RPM: 1
-    UPLOAD_SYMBOL_FILES: 1
     SYMBOL_TARGET: libhos-client-cpp
     PULP3_REPO_NAME: framework-stable-x86_64.el7
     PULP3_DIST_NAME: framework-stable-x86_64.el7
@@ -244,7 +243,6 @@ release_build_debug_for_centos8:
     BUILD_TYPE: Debug
     PACKAGE: 1
     UPLOAD_RPM: 1
-    UPLOAD_SYMBOL_FILES: 1
     SYMBOL_TARGET: libhos-client-cpp
     PULP3_REPO_NAME: framework-stable-x86_64.el8
     PULP3_DIST_NAME: framework-stable-x86_64.el8
