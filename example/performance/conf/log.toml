@@ -1,0 +1,11 @@
+[global]
+default format = "%d(%c), %V, %U, %m%n"
+[levels]
+DEBUG=30
+INFO=20
+FATAL=30
+[formats]
+other = "%d(%c), %V, %F, %U, %m%n"
+plugin = "%d(%c), %m%n"
+[rules]
+!.*    "./log/%c.%d(%F)"; other
